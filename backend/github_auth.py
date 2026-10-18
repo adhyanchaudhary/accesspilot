@@ -122,7 +122,7 @@ class GitHub:
                                'installation_id': installation['id']})
         return result
 
-    async def authorize_repository(self, user_token, installation_id, repository_id):
+    async def repository_access(self, user_token, installation_id, repository_id):
         repos = await self.repositories(user_token, installation_id)
         repo = next((r for r in repos if r['id'] == repository_id), None)
         if repo is None:
@@ -132,6 +132,10 @@ class GitHub:
         installed = await self.pages('/installation/repositories', credential['token'], 'repositories')
         if not any(r['id'] == repository_id for r in installed):
             raise HTTPException(403, 'Repository is not authorized for this installation')
+        return repo, credential['token']
+
+    async def authorize_repository(self, user_token, installation_id, repository_id):
+        repo, _ = await self.repository_access(user_token, installation_id, repository_id)
         return repo
 
     async def exchange_code(self, code, verifier):

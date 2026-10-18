@@ -119,6 +119,8 @@ def test_scoped_token_and_n8n(settings, monkeypatch):
             assert json.loads(request.content) == {'repository_ids': [7], 'permissions': {'contents': 'read'}}
             assert jwt.get_unverified_header(request.headers['authorization'].split()[1])['alg'] == 'RS256'
             return httpx.Response(201, json={'token': 'installation-secret', 'expires_at': '2099-01-01T00:00:00Z'})
+        if path == '/repositories/7/commits/main':
+            return httpx.Response(200, json={'sha': 'a' * 40, 'commit': {'tree': {'sha': 'b' * 40}}})
         if path == '/webhook/test':
             assert request.headers['x-accesspilot-secret'] == 'webhook-secret'
             payload = json.loads(request.content)
@@ -207,6 +209,8 @@ def test_audit_upstream_failures(settings, monkeypatch, failure):
             return httpx.Response(401 if failure == 'token_expired' else 201, json={'token': 'secret'})
         if path == '/installation/repositories' and failure == 'installation_removed':
             return httpx.Response(200, json={'repositories': []})
+        if path == '/repositories/7/commits/main':
+            return httpx.Response(200, json={'sha': 'a' * 40, 'commit': {'tree': {'sha': 'b' * 40}}})
         if path == '/webhook/test':
             if failure == 'n8n_timeout':
                 raise httpx.ReadTimeout('timeout', request=request)

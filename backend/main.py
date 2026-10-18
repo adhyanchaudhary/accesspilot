@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from .github_auth import GitHub, Settings
+from .job_sources import snapshot, source_router
 
 
 class ExpiringStore:
@@ -74,6 +75,8 @@ def create_app(settings=None, transport=None):
     app = FastAPI(title='AccessPilot', lifespan=lifespan)
     app.state.sessions = ExpiringStore()
     app.state.states = ExpiringStore()
+    app.state.jobs = ExpiringStore(limit=1000)
+    app.include_router(source_router())
     app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin],
                        allow_credentials=True, allow_methods=['GET', 'POST'],
                        allow_headers=['Content-Type', 'X-CSRF-Token'])
@@ -168,22 +171,37 @@ def create_app(settings=None, transport=None):
         return response
 
     @app.post('/audits', status_code=202)
-    async def audit(body: AuditRequest, s=Depends(session)):
-        repo = await app.state.github.authorize_repository(s['token'], body.installation_id, body.repository_id)
+    async def audit(body: AuditRequest, request: Request, s=Depends(session)):
+        repo, installation_token = await app.state.github.repository_access(
+            s['token'], body.installation_id, body.repository_id)
         await validate_website(body.website_url)
         parsed = urlsplit(settings.n8n_webhook_url)
         if (parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password
                 or not settings.n8n_webhook_secret):
             raise HTTPException(503, 'Secure n8n webhook configuration is missing')
+        pinned = await snapshot(app.state.github, repo, installation_token)
         job_id = str(uuid4())
+        worker_credential = secrets.token_urlsafe(32)
+        expires = min(s['expires'], time.time() + 3600)
+        app.state.jobs.put(job_id, {
+            'id': job_id, 'repository_id': repo['id'], 'installation_id': body.installation_id,
+            'owner_session': request.cookies['accesspilot_session'], 'owner_user_id': s['user']['id'],
+            'credential_hash': hashlib.sha256(worker_credential.encode()).hexdigest(),
+            'expires': expires, **pinned})
         payload = {'schema_version': 1, 'job_id': job_id, 'website_url': body.website_url,
-                   'repository': repo, 'requested_by': s['user']['id']}
+                   'repository': repo, 'requested_by': s['user']['id'],
+                   'base_sha': pinned['base_sha'],
+                   'source_service': {'credential': worker_credential, 'expires_at': int(expires),
+                       'tree_path': f'/service/jobs/{job_id}/tree',
+                       'source_path': f'/service/jobs/{job_id}/source'}}
         try:
             result = await app.state.http.post(settings.n8n_webhook_url, json=payload,
                 headers={'X-AccessPilot-Secret': settings.n8n_webhook_secret})
         except httpx.RequestError:
+            app.state.jobs.items.pop(job_id, None)
             raise HTTPException(502, 'n8n delivery failed; acceptance is unknown, do not retry blindly') from None
         if not result.is_success:
+            app.state.jobs.items.pop(job_id, None)
             raise HTTPException(502, 'n8n rejected the job')
         return {'job_id': job_id, 'status': 'accepted'}
 

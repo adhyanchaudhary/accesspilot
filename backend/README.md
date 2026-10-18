@@ -116,7 +116,7 @@ metadata and website URLs. Never place secrets in website URLs.
 POST /audits currently **dispatches** this authenticated payload and requires a 2xx
 acknowledgement. Configure n8n to acknowledge quickly after accepting the job.
 A 202 means accepted by n8n, not that an accessibility audit or remediation completed.
-No status/results or GitHub source-read/write routes are implemented yet.
+Job-scoped source-read routes are available below. No status/results or GitHub write routes are implemented.
 
 ```json
 {
@@ -127,7 +127,14 @@ No status/results or GitHub source-read/write routes are implemented yet.
     "id": 7, "installation_id": 3, "full_name": "owner/site",
     "private": true, "default_branch": "main"
   },
-  "requested_by": 1
+  "requested_by": 1,
+  "base_sha": "40-character commit SHA resolved by the backend",
+  "source_service": {
+    "credential": "server-generated per-job machine credential",
+    "expires_at": 1800000000,
+    "tree_path": "/service/jobs/<job-id>/tree",
+    "source_path": "/service/jobs/<job-id>/source"
+  }
 }
 ```
 
@@ -139,20 +146,95 @@ unrestricted network destinations or forward authentication headers across redir
 n8n should deduplicate job_id. Network timeouts leave acceptance unknown; there is no
 automatic retry. Durable idempotent submission/reconciliation remains future work.
 
-n8n Cloud **cannot call localhost on your laptop**. This local backend initiates outbound
-HTTPS to n8n; it sends no GitHub token and exposes no public token endpoint. The two
-Gemini agents, source retrieval and result delivery must be configured separately.
-For later local source retrieval/results, use a local outbound polling worker connected
-to a protected cloud queue/result store, so no inbound tunnel is needed. Alternatively,
-use an authenticated HTTPS development tunnel with an authenticated, job-scoped callback,
-request signatures, timestamp/replay checks and strict size limits before enabling callbacks.
-Do not expose an unauthenticated tunnel or forward browser sessions to n8n.
+### Job-scoped repository source service
+
+Audit submission resolves the authorized repository's default branch to an immutable
+commit SHA and tree SHA **before** dispatch. There is no browser-selectable ref or
+repository override for source requests. Each job stores the submitting user's ID,
+installation/repository IDs, owner session, pinned snapshot and SHA-256 hash of a new
+256-bit random machine credential. The raw credential goes only to the authenticated
+n8n webhook, never to browser responses; it is distinct from both the browser session
+and N8N_WEBHOOK_SECRET. No GitHub tokens leave the backend.
+
+Both service endpoints require `Authorization: Bearer <source_service.credential>`.
+Cookies alone fail. A credential can read only its own job and expires after at most
+one hour or at owner-session expiry, whichever occurs first. Logout, restart or a failed/
+timed-out dispatch invalidates access. A timeout can still mean n8n accepted the payload,
+but further source retrieval is denied. Credentials are reusable for reads until expiry;
+protect them as secrets, exclude them from logs/agent prompts, restrict n8n editors and
+disable/redact execution-data retention for this workflow. Only pass source text and
+paths to Gemini, not the full webhook payload or HTTP headers.
+
+Every service request verifies the current session owner, live GitHub user identity,
+user's membership in this app's installation, user repository grant, and installation
+repository grant. It mints a fresh, short-lived GitHub Contents-read token restricted
+to that repository. Revoked/expired user authorization or installation access fails
+closed; n8n cannot keep reading solely by knowing a job or installation ID.
+
+| Service route | Response |
+| --- | --- |
+| GET /service/jobs/{job_id}/tree | `{job_id, base_sha, files:[{path, sha, size}]}` |
+| GET /service/jobs/{job_id}/source?path=src/App.tsx | `{job_id, base_sha, path, blob_sha, text}` |
+
+Agent 1 uses the tree's paths to nominate files. Agent 2 receives only validated file
+text. Source retrieval looks up the exact path in the pinned tree and fetches its
+blob by SHA, never a client-provided ref/SHA/URL. Branch changes cannot move an existing
+job. Responses include no download URLs or installation tokens. Standard errors include
+401 missing machine authentication or expired GitHub authorization; 403 invalid/cross-job
+credential, expired job/owner or revoked access; 404 file absent; 413 incomplete or
+oversized tree; 422 invalid blob text; and 502 upstream failure.
+
+The service returns regular UTF-8 source files only, with a 256 KiB per-file limit
+and 10,000 tree-entry limit. Truncated GitHub trees are rejected. Symlinks, submodules,
+binary/NUL-containing files, hidden paths, traversal, dependency/build directories,
+and common credential filenames are excluded. See `job_sources.py` for allowed
+extensions. Blob size and Git object hash are checked before returning text. This is
+not a secret scanner: review the repository before sending source to cloud agents;
+a secret embedded in an ordinary source file can still be returned. No local checkout,
+arbitrary GitHub URL fetching, code execution, commits or PR creation is involved.
+
+Jobs and sessions remain in single-process memory (up to 1,000 active jobs); use one
+worker, avoid reload during jobs, and finish within the owner's session lifetime.
+A production queue/persistent encrypted store and job renewal/cancellation are outside
+this integration. Existing browser login, repository listing and logout contracts are
+unchanged. Frontend audit responses still contain only job_id and status.
+
+### Reaching the local service securely from n8n
+
+n8n Cloud **cannot call localhost on your laptop**. No tunnel is created by this code.
+Choose one of these integration patterns:
+
+1. **HTTPS callback route:** run an authenticated development tunnel or reverse proxy
+   to the local backend, exposing only `/service/jobs/*` with GET allowed. Terminate
+   TLS, require an additional gateway machine identity if supported, and preserve the
+   Authorization header for the backend's mandatory job-credential check. Keep browser
+   OAuth/login endpoints local. Set a trusted HTTPS base URL in the n8n workflow
+   configuration (for example `ACCESSPILOT_SOURCE_BASE_URL`, not user/agent input).
+   Require this host at the gateway and do not allow redirects or arbitrary callback
+   destinations. Rate-limit requests and redact Authorization/source bodies in logs.
+   The HTTPS entry point is reachable, but no source request is anonymous.
+2. **Outbound worker alternative (architecture only):** keep the backend loopback-only.
+   A local polling worker consumes requests from a separately authenticated cloud queue,
+   validates their job binding, calls these same loopback endpoints with the per-job
+   credential, and uploads results to a protected per-job result channel. n8n interacts
+   with that queue rather than localhost. Use queue ACLs, message expiry, deduplication,
+   bounded paths/payloads and TLS; never put GitHub credentials in messages. The queue
+   and polling worker are not implemented in this change.
+
+In an n8n HTTP Request node, use the trusted base URL plus
+`{{$json.source_service.tree_path}}`, method GET, and the header
+`Authorization: Bearer {{$json.source_service.credential}}`. For a second HTTP Request
+node, use `source_path` with a **query parameter** named `path` set to an exact nominated
+tree entry. Retain the original webhook payload in a private workflow branch to supply
+the credential to HTTP nodes; do not pass that branch to either Gemini agent. Keep
+redirect following off to prevent sending the credential to another host. The paths
+in the webhook are relative; no public URL is inferred from request Host headers.
 
 ## Future remediation contract (design only; not implemented routes)
 
-Persist each job with its authenticated user ID, installation/repository IDs, approved
-base branch and immutable base SHA. A local outbound worker can retrieve a Git tree and
-bounded source blobs after rechecking both user and installation access. Give Agent 1
+Jobs now capture user, installation/repository IDs and an immutable snapshot in memory.
+Future remediation needs durable storage of this context and reviewed proposals. The
+source service retrieves the pinned tree and bounded blobs after checking access. Give Agent 1
 only audit findings + a bounded tree; validate its candidate paths against that tree.
 Give Agent 2 only approved source files and findings. Treat both agents' output as
 untrusted data; exclude secrets and binary/generated files.
@@ -176,7 +258,11 @@ No GitHub writes or agent executions are performed by the current backend/tests.
 
 Automated tests mock GitHub and n8n; they cover JWT signatures, scoped token requests,
 OAuth state/cookie binding and replay/expiry, session expiry, repository authorization,
-pagination, CSRF, upstream failures and private URL rejection. A local process smoke
+pagination, CSRF, upstream failures and private URL rejection. Job-source tests also
+cover pinned commits, cross-job credential isolation, cookie-only rejection, expiry/
+logout, owner identity and live grant revocation, source path/size policies, symlinks,
+truncated trees, blob integrity and failed-dispatch credential revocation. A local process smoke
 check verifies startup and /health. Live OAuth consent, app credentials/installations,
-repository listing against GitHub and the configured n8n workflow require your credentials
+repository listing and source retrieval against GitHub, HTTPS routing, and the configured
+n8n workflow require your credentials
 and manual end-to-end testing; test passes do not establish those external integrations.
