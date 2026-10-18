@@ -3,21 +3,24 @@ import asyncio
 import base64
 import hashlib
 import ipaddress
+import logging
 import secrets
 import socket
 import time
 from contextlib import asynccontextmanager
 from urllib.parse import urlencode, urlsplit
-from uuid import uuid4
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from .github_auth import GitHub, Settings
 from .job_sources import snapshot, source_router
+from .security import RequestBoundary
+from .audit_jobs import AuditQueue
 
 
 class ExpiringStore:
@@ -47,12 +50,12 @@ async def validate_website(url):
     try:
         if parsed.port not in (None, 80, 443):
             raise ValueError()
-        addresses = await asyncio.get_running_loop().getaddrinfo(
+        addresses = await asyncio.wait_for(asyncio.get_running_loop().getaddrinfo(
             parsed.hostname, parsed.port or (443 if parsed.scheme == 'https' else 80),
-            type=socket.SOCK_STREAM)
+            type=socket.SOCK_STREAM), timeout=5)
         if not addresses or any(not ipaddress.ip_address(a[4][0]).is_global for a in addresses):
             raise ValueError()
-    except (ValueError, OSError):
+    except (ValueError, OSError, TimeoutError):
         raise HTTPException(422, 'Website must resolve exclusively to public addresses on port 80 or 443') from None
 
 
@@ -62,24 +65,44 @@ class AuditRequest(BaseModel):
     repository_id: int = Field(gt=0)
 
 
-def create_app(settings=None, transport=None):
+def create_app(settings=None, transport=None, scanner=None):
     settings = settings or Settings.from_env()
+    origin = urlsplit(settings.frontend_origin)
+    if (origin.scheme not in ('http', 'https') or not origin.hostname or origin.username
+            or origin.password or origin.path or origin.query or origin.fragment
+            or '*' in settings.frontend_origin):
+        raise ValueError('FRONTEND_ORIGIN must be one exact HTTP(S) origin without a trailing slash')
+    # Suppress access/HTTP wire logs even when an external runner configures logging.
+    for name in ('uvicorn.access', 'httpx', 'httpcore'):
+        logging.getLogger(name).disabled = True
 
     @asynccontextmanager
     async def lifespan(app):
-        async with httpx.AsyncClient(timeout=20, follow_redirects=False, transport=transport) as client:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=False, transport=transport,
+                               limits=httpx.Limits(max_connections=16, max_keepalive_connections=8)) as client:
             app.state.github = GitHub(settings, client)
             app.state.http = client
-            yield
+            await app.state.audit_queue.start()
+            try:
+                yield
+            finally:
+                await app.state.audit_queue.stop()
 
-    app = FastAPI(title='AccessPilot', lifespan=lifespan)
+    app = FastAPI(title='AccessPilot', lifespan=lifespan, debug=False,
+                  docs_url=None if settings.tunnel_mode else '/docs',
+                  redoc_url=None if settings.tunnel_mode else '/redoc',
+                  openapi_url=None if settings.tunnel_mode else '/openapi.json')
+    if settings.tunnel_mode:
+        app.add_middleware(TrustedHostMiddleware,
+                           allowed_hosts=['localhost', '127.0.0.1', '*.trycloudflare.com'])
     app.state.sessions = ExpiringStore()
     app.state.states = ExpiringStore()
     app.state.jobs = ExpiringStore(limit=1000)
+    app.state.audit_queue = AuditQueue(app, settings, scanner)
     app.include_router(source_router())
     app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin],
                        allow_credentials=True, allow_methods=['GET', 'POST'],
-                       allow_headers=['Content-Type', 'X-CSRF-Token'])
+                       allow_headers=['Content-Type', 'X-CSRF-Token', 'Idempotency-Key'])
 
     @app.middleware('http')
     async def no_store(request, call_next):
@@ -100,7 +123,7 @@ def create_app(settings=None, transport=None):
             raise HTTPException(401, 'Login required')
         if request.method == 'POST':
             if request.headers.get('origin') != settings.frontend_origin or not secrets.compare_digest(
-                    request.headers.get('x-csrf-token', ''), value['csrf']):
+                    request.headers.get('x-csrf-token', '').encode(), value['csrf'].encode()):
                 raise HTTPException(403, 'Invalid request origin or CSRF token')
         return value
 
@@ -130,7 +153,7 @@ def create_app(settings=None, transport=None):
     @app.get('/auth/github/callback')
     async def callback(request: Request, state: str = '', code: str = ''):
         pending = app.state.states.get(state)
-        if not pending or not secrets.compare_digest(pending['binding'], request.cookies.get('accesspilot_oauth', '')):
+        if not pending or not secrets.compare_digest(pending['binding'].encode(), request.cookies.get('accesspilot_oauth', '').encode()):
             raise HTTPException(400, 'Invalid or expired OAuth state')
         app.state.states.items.pop(state, None)  # single use, consumed before network calls
         if not code:
@@ -180,31 +203,22 @@ def create_app(settings=None, transport=None):
                 or not settings.n8n_webhook_secret):
             raise HTTPException(503, 'Secure n8n webhook configuration is missing')
         pinned = await snapshot(app.state.github, repo, installation_token)
-        job_id = str(uuid4())
-        worker_credential = secrets.token_urlsafe(32)
-        expires = min(s['expires'], time.time() + 3600)
-        app.state.jobs.put(job_id, {
-            'id': job_id, 'repository_id': repo['id'], 'installation_id': body.installation_id,
-            'owner_session': request.cookies['accesspilot_session'], 'owner_user_id': s['user']['id'],
-            'credential_hash': hashlib.sha256(worker_credential.encode()).hexdigest(),
-            'expires': expires, **pinned})
-        payload = {'schema_version': 1, 'job_id': job_id, 'website_url': body.website_url,
-                   'repository': repo, 'requested_by': s['user']['id'],
-                   'base_sha': pinned['base_sha'],
-                   'source_service': {'credential': worker_credential, 'expires_at': int(expires),
-                       'tree_path': f'/service/jobs/{job_id}/tree',
-                       'source_path': f'/service/jobs/{job_id}/source'}}
-        try:
-            result = await app.state.http.post(settings.n8n_webhook_url, json=payload,
-                headers={'X-AccessPilot-Secret': settings.n8n_webhook_secret})
-        except httpx.RequestError:
-            app.state.jobs.items.pop(job_id, None)
-            raise HTTPException(502, 'n8n delivery failed; acceptance is unknown, do not retry blindly') from None
-        if not result.is_success:
-            app.state.jobs.items.pop(job_id, None)
-            raise HTTPException(502, 'n8n rejected the job')
-        return {'job_id': job_id, 'status': 'accepted'}
+        key = request.headers.get('idempotency-key', '')
+        if len(key) > 128 or (key and not all(c.isascii() and (c.isalnum() or c in '-_.') for c in key)):
+            raise HTTPException(422, 'Invalid Idempotency-Key')
+        job = app.state.audit_queue.enqueue(body, repo, pinned,
+            request.cookies['accesspilot_session'], s, key)
+        return {'job_id': job['id'], 'status': job['status']}
 
+    @app.get('/audits/{job_id}')
+    async def audit_status(job_id: str, s=Depends(session)):
+        job = app.state.jobs.get(job_id)
+        if not job or job['owner_user_id'] != s['user']['id']:
+            raise HTTPException(404, 'Audit job not found')
+        return {'job_id': job['id'], 'status': job['status'], 'error': job['error'],
+                'summary': job.get('summary')}
+
+    app.add_middleware(RequestBoundary, tunnel_mode=settings.tunnel_mode)
     return app
 
 

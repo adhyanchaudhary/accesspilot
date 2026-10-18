@@ -80,9 +80,13 @@ def service(settings, monkeypatch):
 
 
 def submit(client):
-    return client.post('/audits', json={'website_url': 'https://example.com',
+    response = client.post('/audits', json={'website_url': 'https://example.com',
         'installation_id': 3, 'repository_id': 7}, headers={
-            'Origin': 'http://localhost:3000', 'X-CSRF-Token': 'csrf'})
+            'Origin': 'http://localhost:3000', 'X-CSRF-Token': 'csrf',
+            'Idempotency-Key': __import__('uuid').uuid4().hex})
+    if response.status_code == 202:
+        client.portal.call(client.app.state.audit_queue.queue.join)
+    return response
 
 
 def job_request(client, payload, endpoint='tree', **kwargs):
@@ -191,6 +195,7 @@ def test_limits_and_blob_failures(service, case):
 def test_failed_dispatch_revokes_job_credential(service):
     app, client, upstream = service
     upstream.webhook_status = 500
-    assert submit(client).status_code == 502
-    assert not app.state.jobs.items
+    response = submit(client)
+    assert response.status_code == 202
+    assert app.state.jobs.get(response.json()['job_id'])['status'] == 'failed'
     assert job_request(client, upstream.jobs[0]).status_code == 403

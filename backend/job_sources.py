@@ -78,7 +78,8 @@ def source_router():
             raise HTTPException(401, 'Job service credential required', headers={'WWW-Authenticate': 'Bearer'})
         job = request.app.state.jobs.get(job_id)
         supplied = hashlib.sha256(credentials.credentials.encode()).hexdigest()
-        if not job or not secrets.compare_digest(job['credential_hash'], supplied):
+        if (not job or job.get('status') not in ('dispatching', 'submitted')
+                or not secrets.compare_digest(job['credential_hash'], supplied)):
             raise HTTPException(403, 'Job service access denied')
         owner = request.app.state.sessions.get(job['owner_session'])
         if not owner or owner['user']['id'] != job['owner_user_id']:
@@ -124,6 +125,8 @@ def source_router():
             if digest != entry['sha']:
                 raise ValueError()
             text = content.decode('utf-8')
+            if re.search(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----', text):
+                raise ValueError()
         except (KeyError, ValueError, UnicodeError, binascii.Error):
             raise HTTPException(422, 'Blob is not valid, bounded UTF-8 source text') from None
         return {'job_id': job['id'], 'base_sha': job['base_sha'], 'path': path,

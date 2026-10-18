@@ -9,6 +9,8 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException
 
+from .security import bounded_request
+
 load_dotenv(Path(__file__).with_name('.env'))
 
 
@@ -24,6 +26,13 @@ class Settings:
     cookie_secure: bool = False
     n8n_webhook_url: str = ''
     n8n_webhook_secret: str = ''
+    tunnel_mode: bool = False
+    scan_concurrency: int = 2
+    scan_queue_size: int = 20
+
+    def __post_init__(self):
+        if not 1 <= self.scan_concurrency <= 4 or not 1 <= self.scan_queue_size <= 100:
+            raise ValueError('Scan concurrency must be 1..4 and queue size 1..100')
 
     @classmethod
     def from_env(cls):
@@ -45,6 +54,9 @@ class Settings:
             cookie_secure=os.getenv('COOKIE_SECURE', 'false').lower() == 'true',
             n8n_webhook_url=os.getenv('N8N_WEBHOOK_URL', ''),
             n8n_webhook_secret=os.getenv('N8N_WEBHOOK_SECRET', ''),
+            tunnel_mode=os.getenv('TUNNEL_MODE', 'false').lower() == 'true',
+            scan_concurrency=int(os.getenv('SCAN_CONCURRENCY', '2')),
+            scan_queue_size=int(os.getenv('SCAN_QUEUE_SIZE', '20')),
         )
 
 
@@ -65,7 +77,7 @@ class GitHub:
 
     async def request(self, method, path, token, **kwargs):
         try:
-            response = await self.client.request(
+            response = await bounded_request(self.client,
                 method, 'https://api.github.com' + path,
                 headers={'Authorization': f'Bearer {token}',
                          'Accept': 'application/vnd.github+json',
@@ -142,7 +154,8 @@ class GitHub:
         if not self.settings.client_id or not self.settings.client_secret:
             raise HTTPException(503, 'GitHub OAuth credentials are not configured')
         try:
-            response = await self.client.post('https://github.com/login/oauth/access_token',
+            response = await bounded_request(self.client, 'POST', 'https://github.com/login/oauth/access_token',
+                max_bytes=65536,
                 headers={'Accept': 'application/json'}, data={
                     'client_id': self.settings.client_id, 'client_secret': self.settings.client_secret,
                     'code': code, 'redirect_uri': self.settings.callback_url, 'code_verifier': verifier})

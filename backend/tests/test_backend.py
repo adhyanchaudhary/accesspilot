@@ -113,6 +113,8 @@ def test_scoped_token_and_n8n(settings, monkeypatch):
         import json
         calls.append(request.url.path)
         path = request.url.path
+        if path == '/user':
+            return httpx.Response(200, json={'id': 1, 'login': 'alice'})
         if path == '/user/installations':
             return httpx.Response(200, json={'installations': [{'id': 3, 'app_id': 42}]})
         if path == '/app/installations/3/access_tokens':
@@ -139,6 +141,7 @@ def test_scoped_token_and_n8n(settings, monkeypatch):
             'installation_id': 3, 'repository_id': 7}, headers={
                 'Origin': settings.frontend_origin, 'X-CSRF-Token': 'csrf'})
         assert response.status_code == 202
+        client.portal.call(app.state.audit_queue.queue.join)
         assert set(response.json()) == {'job_id', 'status'}
         assert '/webhook/test' in calls
 
@@ -203,6 +206,8 @@ def test_audit_upstream_failures(settings, monkeypatch, failure):
     monkeypatch.setattr('backend.main.validate_website', public)
     def handler(request):
         path = request.url.path
+        if path == '/user':
+            return httpx.Response(200, json={'id': 1, 'login': 'alice'})
         if path == '/user/installations':
             return httpx.Response(200, json={'installations': [{'id': 3, 'app_id': 42}]})
         if path.endswith('/access_tokens'):
@@ -222,4 +227,9 @@ def test_audit_upstream_failures(settings, monkeypatch, failure):
         response = client.post('/audits', json={'website_url': 'https://example.com',
             'installation_id': 3, 'repository_id': 7}, headers={
                 'Origin': settings.frontend_origin, 'X-CSRF-Token': 'csrf'})
-        assert response.status_code == {'token_expired': 401, 'installation_removed': 403}.get(failure, 502)
+        assert response.status_code == {'token_expired': 401, 'installation_removed': 403}.get(failure, 202)
+        if response.status_code == 202:
+            client.portal.call(app.state.audit_queue.queue.join)
+            job = app.state.jobs.get(response.json()['job_id'])
+            assert job['status'] == 'failed'
+            assert job['error'] == ('dispatch_unknown' if failure == 'n8n_timeout' else 'dispatch_rejected')

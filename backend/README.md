@@ -8,12 +8,13 @@ is included in this previously empty checkout.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
+# Install browser binaries and OS libraries as described in the scanner section below.
 cp backend/.env.example backend/.env
 # Edit backend/.env with your configuration; never commit it or the PEM.
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --no-access-log
+python -m backend.run
 ```
 
-Use `--no-access-log` to avoid logging OAuth callback codes and state. Do not enable
+The launcher disables access logs and proxy-header trust. Do not enable
 HTTP request-body/header debug logs. Environment variables override backend/.env.
 The PEM can be supplied via `GITHUB_PRIVATE_KEY_PATH` (recommended, chmod 600) or
 `GITHUB_PRIVATE_KEY`. Never send it to the frontend or n8n. An unreadable configured
@@ -78,10 +79,11 @@ CORS permits credentials only from FRONTEND_ORIGIN. Requests use
 | GET /auth/github/me | Session | `{ "user": {"id": 1, "login": "alice"}, "csrf_token": "..." }` |
 | GET /github/install | Session | Redirect to app installation page |
 | GET /github/repositories | Session | `{ "repositories": [{"id": 7, "installation_id": 3, "full_name": "owner/site", "private": true, "default_branch": "main"}] }` |
-| POST /audits | Session + CSRF + Origin | 202 `{ "job_id": "UUID", "status": "accepted" }` |
+| POST /audits | Session + CSRF + Origin | 202 `{ "job_id": "UUID", "status": "queued" }` (or existing job status on deduplication) |
+| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary}` |
 | POST /auth/logout | Session + CSRF + Origin | `{ "status": "logged_out" }` |
 
-Interactive OpenAPI documentation is at `/docs`. Errors use `{ "detail": ... }`:
+Interactive OpenAPI documentation is at `/docs` in the local profile only; tunnel mode disables it. Errors use `{ "detail": ... }`:
 401 login/expired token, 403 forbidden/CSRF, 422 invalid input, 502 upstream failure,
 503 missing configuration. `/health/github` is authenticated to prevent anonymous
 users consuming the GitHub App's API quota.
@@ -95,13 +97,18 @@ const { repositories } = await fetch(`${api}/github/repositories`, {
   credentials: 'include'
 }).then(r => r.json());
 const selected = repositories[0]; // Let the user choose from this list.
+const submissionKey = crypto.randomUUID(); // Reuse this key if this submission is retried.
 const response = await fetch(`${api}/audits`, {
   method: 'POST', credentials: 'include',
-  headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token },
+  headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': me.csrf_token,
+    'Idempotency-Key': submissionKey },
   body: JSON.stringify({ website_url: 'https://example.com',
     installation_id: selected.installation_id, repository_id: selected.id })
 });
 // Handle non-2xx explicitly. Logout uses the same CSRF header.
+const { job_id } = await response.json();
+// Poll every few seconds while queued/scanning/dispatching; stop on submitted/failed.
+const status = await fetch(`${api}/audits/${job_id}`, { credentials: 'include' }).then(r => r.json());
 ```
 
 ## n8n Cloud integration
@@ -113,10 +120,12 @@ on both sides. The browser never receives the URL's private configuration or hea
 Protect n8n execution logs and restrict workflow editors; the payload contains repository
 metadata and website URLs. Never place secrets in website URLs.
 
-POST /audits currently **dispatches** this authenticated payload and requires a 2xx
-acknowledgement. Configure n8n to acknowledge quickly after accepting the job.
-A 202 means accepted by n8n, not that an accessibility audit or remediation completed.
-Job-scoped source-read routes are available below. No status/results or GitHub write routes are implemented.
+POST /audits authenticates the selection, pins the commit, queues a background scan,
+and returns 202 immediately after queue admission (GitHub/URL preflight still runs in
+that request). The worker runs `backend/scanner.py`, captures audit.json and validates
+it before sending this authenticated payload. A 202 means **queued locally**, not yet
+accepted by n8n. Job status becomes `submitted` only after n8n returns 2xx; this still
+does not mean Gemini remediation completed. No GitHub write routes are implemented.
 
 ```json
 {
@@ -129,6 +138,19 @@ Job-scoped source-read routes are available below. No status/results or GitHub w
   },
   "requested_by": 1,
   "base_sha": "40-character commit SHA resolved by the backend",
+  "audit": {
+    "schema_version": 1,
+    "requested_url": "https://example.com",
+    "testEngine": {"name": "axe-core", "version": "scanner-supplied version"},
+    "violations": [{
+      "id": "image-alt", "impact": "critical",
+      "description": "Images must have alternative text",
+      "nodes": [{"html": "<img src=\"hero.png\">", "target": ["#hero img"],
+        "any": [{"id": "has-alt", "message": "Element has no alt attribute"}],
+        "all": [], "none": []}]
+    }],
+    "summary": {"violation_count": 1, "affected_element_count": 1}
+  },
   "source_service": {
     "credential": "server-generated per-job machine credential",
     "expires_at": 1800000000,
@@ -141,10 +163,106 @@ Job-scoped source-read routes are available below. No status/results or GitHub w
 Backend checks public DNS addresses and HTTP(S) ports before dispatch. **The n8n
 fetcher must independently enforce public egress** on every DNS resolution and redirect,
 including subresources, block internal/metadata IPs, and bound crawl size/time.
-Preflight DNS validation alone cannot prevent DNS rebinding. Never let an LLM choose
+The backend scanner uses the guarded pinned-IP proxy described below; preflight DNS
+validation alone cannot prevent DNS rebinding for any separate n8n crawler. Never let an LLM choose
 unrestricted network destinations or forward authentication headers across redirects.
-n8n should deduplicate job_id. Network timeouts leave acceptance unknown; there is no
-automatic retry. Durable idempotent submission/reconciliation remains future work.
+n8n must deduplicate job_id (also sent as the Idempotency-Key header) in a persistent
+store before invoking agents. The backend makes one webhook attempt per job; ambiguous
+timeouts set a failed/dispatch_unknown status and revoke its source credential, without
+retrying. Durable queue restoration and delivery reconciliation remain future work.
+
+### Scanner setup and background job lifecycle
+
+The existing single-page scanner lives at **backend/scanner.py**. It still uses synchronous
+Playwright and axe-playwright-python. Its changes preserve the full native axe result
+instead of the earlier lossy `issue_id`/`failed_code` list, add browser network guards,
+and remove its hard-coded localhost webhook. Only the backend queue dispatches n8n.
+There is no manual file upload or browser-selectable local file path.
+
+Install pinned dependencies, Chromium and its supported Linux libraries on the host
+that runs FastAPI (Linux or macOS; use WSL on Windows):
+
+```bash
+pip install -r backend/requirements.txt
+export PLAYWRIGHT_BROWSERS_PATH="$PWD/.cache/ms-playwright"
+python -m playwright install chromium
+# On supported Linux hosts, install required system libraries with admin approval:
+# python -m playwright install-deps chromium
+# Set the same absolute PLAYWRIGHT_BROWSERS_PATH in backend/.env for later runs.
+python -m backend.run --tunnel
+```
+
+Chromium runs with its **sandbox enabled**. The host must support it; do not add
+`--no-sandbox` to bypass a failure. Browser downloads require `cdn.playwright.dev`
+and any official download redirect destinations permitted by your network policy.
+TLS/artifact verification must stay enabled. On this cloud instance Python dependency
+installation succeeded, but Chromium download returned 403 "Domain forbidden" for
+cdn.playwright.dev. No live browser scan or live n8n integration has been validated.
+The guarded proxy needs outbound TCP to checked public IPv4 ports 80/443; this managed
+environment may require supported egress configuration. It never falls back to an
+unvalidated corporate/platform proxy or bypasses an access denial.
+
+`SCAN_CONCURRENCY` defaults to 2 (allowed 1..4), `SCAN_QUEUE_SIZE` to 20 (allowed
+1..100). The single FastAPI process owns a fixed worker pool and bounded queue.
+A full queue returns 503. Browser work runs in a separate process group in a private
+temporary directory; audit.json is read with size/type checks and deleted afterward.
+The child environment excludes application credentials. Timeout, cancellation and
+shutdown kill the scanner/browser process group. No scan is executed in an HTTP
+request or in an unbounded thread/background-task pool.
+
+Job states: **queued → scanning → dispatching → submitted**, or **failed**. Poll
+GET /audits/{job_id} with the submitting user's session; another user receives 404.
+The response includes `error` and `summary` (violation/affected-element counts when
+available), never machine credentials, raw scanner logs or internal webhook details.
+`submitted` means n8n accepted the payload, not that agents finished or fixed code.
+Missing browser binaries/libraries/sandbox support produce `scanner_failed`; other
+safe codes include `scan_timed_out`, `invalid_report`, `authorization_expired`,
+`authorization_failed`, `dispatch_rejected`, `dispatch_unknown` and `backend_stopped`.
+A failed scan/report never sends an empty fake audit to n8n. Zero findings are valid
+only when axe actually reports an empty violations array.
+
+Send a fresh **Idempotency-Key** per intentional submission; reuse it for transport
+retries. Keys are scoped to the submitting session. Reusing a key with different input
+returns 409; reuse with the same input returns its existing job, including failures,
+without rescanning or resubmitting. If omitted, the same session + URL + repository
+input reuses the existing job for its lifetime (up to one hour); use a new explicit
+key for an intentional rescan. Concurrent submissions reserve atomically, and duplicate
+queue deliveries skip already claimed jobs. There is no automatic retry after scan or
+webhook failure. Restart loses jobs/idempotency state and revokes credentials: this
+is a development queue, not a durable exactly-once delivery service.
+
+Each worker rechecks user identity and GitHub grants before scanning and before
+n8n dispatch. The authorized repository/base commit chosen at admission never changes.
+The report is JSON-only, at most 2 MiB, with validated violation IDs/impact/descriptions,
+node HTML/selectors and check-evidence shapes. Native `id`, `impact`, `description`,
+`helpUrl`, `nodes[].html`, `nodes[].target`, `failureSummary` and `any/all/none` evidence
+(including nested data/related nodes) stay intact, along with other axe metadata.
+`audit.schema_version`, `requested_url` and `summary` are added. Agent 1 must use
+**audit.violations**, not infer findings from counts or expect the old `failed_code`
+format. Treat HTML/selectors/evidence as untrusted text, never rendered HTML or executable
+instructions. Report validation rejects missing findings rather than silently treating
+a malformed scanner result as zero violations.
+
+Network safety is enforced on the **actual socket connection**, not just a DNS preflight:
+all Chromium HTTP/HTTPS traffic goes through a per-scan loopback forward proxy. Each
+connection resolves the destination, rejects private/reserved/mixed DNS results and
+Azure's platform IP, then connects to the checked public IPv4 address without a second
+hostname lookup. This applies to navigation, redirects, frames and subresources.
+Only HTTP port 80 and HTTPS CONNECT port 443 are allowed. IPv6-only/transition routes
+are unsupported. Chromium loopback proxy bypass, direct DNS/QUIC and non-proxied WebRTC
+UDP are disabled; WebSockets, service workers, downloads, non-HTTP schemes and methods
+other than GET/HEAD are blocked. HTTPS certificate verification remains enabled.
+
+Scan limits: 30-second page navigation, 60-second scanner wall time and per-process CPU limit,
+120-second whole-job deadline, 16 proxy connections, 32 MiB aggregate proxy traffic,
+15-second proxy idle timeout, 4 MiB child file-write limit and 2 MiB report cap.
+Sites requiring login, WebSockets, service workers, POST APIs or private resources can
+fail or render partially under this read-only public-page policy. Findings describe
+the page that was successfully rendered, not proof that every resource loaded.
+Browser bugs and extreme page memory use remain risks: for untrusted public users,
+run workers in an OS/container sandbox with memory/CPU limits and a public-only network
+firewall as an additional boundary. No OS isolation or public deployment was created
+by this integration.
 
 ### Job-scoped repository source service
 
@@ -158,8 +276,9 @@ and N8N_WEBHOOK_SECRET. No GitHub tokens leave the backend.
 
 Both service endpoints require `Authorization: Bearer <source_service.credential>`.
 Cookies alone fail. A credential can read only its own job and expires after at most
-one hour or at owner-session expiry, whichever occurs first. Logout, restart or a failed/
-timed-out dispatch invalidates access. A timeout can still mean n8n accepted the payload,
+one hour or at owner-session expiry, whichever occurs first. Logout, restart, scanner failure or a failed/
+timed-out dispatch invalidates access. Source access is enabled only during dispatch
+and after submission, not while scanning. A timeout can still mean n8n accepted the payload,
 but further source retrieval is denied. Credentials are reusable for reads until expiry;
 protect them as secrets, exclude them from logs/agent prompts, restrict n8n editors and
 disable/redact execution-data retention for this workflow. Only pass source text and
@@ -197,7 +316,59 @@ Jobs and sessions remain in single-process memory (up to 1,000 active jobs); use
 worker, avoid reload during jobs, and finish within the owner's session lifetime.
 A production queue/persistent encrypted store and job renewal/cancellation are outside
 this integration. Existing browser login, repository listing and logout contracts are
-unchanged. Frontend audit responses still contain only job_id and status.
+unchanged. Frontend submission responses still contain only job_id and status; polling exposes
+a safe failure code and count summary, never worker credentials or raw exception text.
+
+### Hardened Quick Tunnel profile
+
+Before exposing a development instance, start the backend with:
+
+```bash
+python -m backend.run --tunnel
+```
+
+This **starts only FastAPI**, never cloudflared or a tunnel. Stop an older backend
+instance yourself before binding the same port. Alternatively set `TUNNEL_MODE=true`
+in the environment and use `python -m backend.run`. Use the same process for local
+OAuth/audit submission and tunneled source calls: jobs and sessions are in memory.
+The default local profile retains API docs for development.
+
+The tunnel profile disables `/docs`, `/redoc`, `/docs/oauth2-redirect` and
+`/openapi.json`, explicitly disables debug, restricts Host to localhost, 127.0.0.1 or
+`*.trycloudflare.com`, and permits only the exact FRONTEND_ORIGIN in CORS. No static
+file routes exist. Job service routes still require their own expiring Bearer
+credentials; a random tunnel hostname is not authentication. Public `/health` and
+OAuth login/callback remain available, protected as described above. Prefer gateway
+path restrictions to `/service/jobs/*` if your tunnel setup supports them. Do not
+claim that Quick Tunnel provides Cloudflare Access authentication by itself.
+
+The launcher binds **127.0.0.1:8000**, disables access logs, uses one worker, caps
+connections at 32 and keep-alive at five seconds, and sets **proxy_headers=False**.
+Do not replace it with Uvicorn defaults (which can trust loopback proxy headers).
+The application does not use Forwarded, X-Forwarded-* or CF-* as authentication or
+rate-limit identity. Callback and frontend URLs come from settings, not Host headers.
+Keep HTTP request/response debug logging and cloudflared request tracing disabled;
+redact secrets in any gateway logging. Application HTTP/access loggers are suppressed
+and errors return generic messages without exception strings or debug tracebacks.
+
+Limits: 32 KiB actual request bodies, including chunked/misdeclared bodies; 4 KiB URLs;
+16 KiB application header limit; 60-second total request deadline; five-second DNS
+lookup timeout; 20-second total outbound request deadline; 8 MiB decoded upstream
+response cap (64 KiB for OAuth and n8n acknowledgement); 16 outbound connections.
+Existing 256 KiB source-file and 10,000-entry tree limits also apply. Deadline expiry
+returns 504; delivery failure/cancellation revokes the pending job's credential.
+Tunnel mode additionally has a **global** 120 requests/minute limit and 10 OAuth
+logins/minute cap, returning 429. These are single-process development limits, not a
+production abuse-control service; spoofed forwarding/IP headers cannot bypass them.
+Ordinary source files containing PEM private-key markers are rejected as well.
+
+Keep frontend and OAuth on localhost for this setup, with local HTTP cookies as
+configured. n8n uses HTTPS plus its per-job machine credential to the tunnel. If you
+later move **browser OAuth** onto a public HTTPS host, use COOKIE_SECURE=true and
+configure GitHub callback/frontend origins and cookie/CORS behavior for that deployment
+separately. Do not send browser session cookies to n8n.
+
+See [the security audit](SECURITY_AUDIT.md) for tested controls and remaining risks.
 
 ### Reaching the local service securely from n8n
 
