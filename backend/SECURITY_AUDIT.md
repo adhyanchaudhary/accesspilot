@@ -70,3 +70,15 @@ health and OAuth entry points remain publicly reachable.
   tools, and do not configure a static server over the checkout. A future public
   browser deployment needs HTTPS-only cookies, updated OAuth settings, persistent
   protected storage, stronger abuse controls and a separate deployment review.
+
+## Windows scanner compatibility follow-up
+
+The scanner now supports native Windows using child-owned Job Objects (CPU limit and
+kill-on-close descendant containment), a credential-free Windows environment with
+installed browser-cache discovery, bounded output, monitored temporary disk usage and
+reparse-safe handle reads. POSIX process-group/rlimit behavior is retained. Windows
+file monitoring is not a kernel disk quota and may briefly overshoot between checks.
+No browser-network, GitHub-authentication or n8n integration controls were removed.
+Validation on Linux: **136 passed, 2 skipped**. Windows-specific mocked checks run
+on all platforms; the two native Windows kernel tests are skipped on Linux. A real
+Windows Chromium scan remains to be verified.

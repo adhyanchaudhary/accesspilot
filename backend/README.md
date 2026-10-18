@@ -180,7 +180,7 @@ and remove its hard-coded localhost webhook. Only the backend queue dispatches n
 There is no manual file upload or browser-selectable local file path.
 
 Install pinned dependencies, Chromium and its supported Linux libraries on the host
-that runs FastAPI (Linux or macOS; use WSL on Windows):
+that runs FastAPI (Linux, macOS or native Windows 11):
 
 ```bash
 pip install -r backend/requirements.txt
@@ -191,6 +191,56 @@ python -m playwright install chromium
 # Set the same absolute PLAYWRIGHT_BROWSERS_PATH in backend/.env for later runs.
 python -m backend.run --tunnel
 ```
+
+On **Windows 11 / PowerShell**, use the same virtual environment/interpreter that
+runs FastAPI. If Chromium is already installed for that interpreter, reuse it:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend/requirements.txt
+# Only if the matching Playwright browser is not already installed:
+# python -m playwright install chromium
+python -m backend.run --tunnel
+```
+
+The runner discovers Windows' default `%LOCALAPPDATA%\ms-playwright` cache before
+isolating the child environment. Explicit `PLAYWRIGHT_BROWSERS_PATH` overrides it;
+use the same absolute path used during installation (`0` for Playwright's bundled
+location is also supported). Do not change HOME/LOCALAPPDATA globally to work around
+browser discovery. Required SystemRoot/WINDIR are preserved, while browser profiles,
+TEMP/TMP, APPDATA and USERPROFILE point to the private scan workspace. GitHub/OAuth/
+n8n credentials and other inherited variables remain excluded.
+
+Native Windows no longer returns `scanner_requires_posix`. It uses a shell-free
+Popen launcher, compatible with Windows Selector and Proactor loops, and establishes
+a **Windows Job Object before any browser process starts**. The job enforces a
+60-second aggregate user-CPU limit; kill-on-close terminates Chromium descendants when
+the scanner exits normally, times out, is cancelled or is terminated by the parent.
+An independent child watchdog also bounds wall time. If Windows/corporate containment
+policies prevent job assignment, scanning fails closed with `scanner_containment_failed`;
+do not disable the browser sandbox or job containment as a workaround. A missing
+SystemRoot fails with `scanner_environment_invalid`.
+
+POSIX retains process-group cleanup, per-process CPU limits and RLIMIT_FSIZE. Windows
+has no equivalent RLIMIT_FSIZE: reports are bounded to 4 MiB **before writing** (and
+2 MiB before acceptance), while a 100 ms monitor limits browser temp files to 4 MiB
+per file / 64 MiB total / 4,096 entries and rejects reparse points. Monitor limits can
+briefly overshoot between checks. Windows report reads open without following reparse
+points and deny concurrent writes/deletes. Cleanup retries briefly for Windows file
+locks; persistent failures report `scanner_cleanup_failed`. Browser cache/resource
+limit violations report `scan_resource_limit`. These controls do not replace a hard
+OS disk quota or a memory sandbox for hostile public use.
+
+Windows launch/timeout/environment/handle protections have mocked regression coverage.
+Native kernel descendant-cleanup tests run only on Windows:
+
+```powershell
+python -m pytest backend/tests/test_windows_scanner.py -q
+```
+
+This implementation was tested on Linux; the Windows-native tests and live Windows
+Chromium launch were **not executed here**. Existing Chromium restrictions, certificate
+verification, public-only proxy, report normalization and tunnel hardening are unchanged.
 
 Chromium runs with its **sandbox enabled**. The host must support it; do not add
 `--no-sandbox` to bypass a failure. Browser downloads require `cdn.playwright.dev`
@@ -253,9 +303,11 @@ are unsupported. Chromium loopback proxy bypass, direct DNS/QUIC and non-proxied
 UDP are disabled; WebSockets, service workers, downloads, non-HTTP schemes and methods
 other than GET/HEAD are blocked. HTTPS certificate verification remains enabled.
 
-Scan limits: 30-second page navigation, 60-second scanner wall time and per-process CPU limit,
+Scan limits: 30-second page navigation, 60-second scanner wall time, POSIX per-process
+CPU limit or Windows Job Object aggregate CPU limit,
 120-second whole-job deadline, 16 proxy connections, 32 MiB aggregate proxy traffic,
-15-second proxy idle timeout, 4 MiB child file-write limit and 2 MiB report cap.
+15-second proxy idle timeout, 4 MiB report-write limit and 2 MiB report cap. POSIX
+also applies RLIMIT_FSIZE; Windows monitors per-file and aggregate temporary data as above.
 Sites requiring login, WebSockets, service workers, POST APIs or private resources can
 fail or render partially under this read-only public-page policy. Findings describe
 the page that was successfully rendered, not proof that every resource loaded.

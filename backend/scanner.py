@@ -1,6 +1,17 @@
 import sys
 import json
 import argparse
+if __package__:
+    from .scanner_platform import install_child_limits, PlatformError, CONTAINMENT_EXIT, MAX_CHILD_FILE_BYTES
+else:
+    from scanner_platform import install_child_limits, PlatformError, CONTAINMENT_EXIT, MAX_CHILD_FILE_BYTES
+
+if __name__ == "__main__":
+    try:
+        install_child_limits()
+    except (PlatformError, OSError):
+        sys.exit(CONTAINMENT_EXIT)
+
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from axe_playwright_python.sync_playwright import Axe
 
@@ -64,17 +75,17 @@ def run_robust_scan(target_url, github_owner="", github_repo="", file_path="", o
         sys.exit(1)
         
     try:
-        with open(output_filename, "w", encoding="utf-8") as json_file:
-            json.dump(results.response, json_file, indent=2, allow_nan=False)
+        with open(output_filename, "w", encoding="utf-8", newline="\n") as json_file:
+            payload = json.dumps(results.response, indent=2, allow_nan=False)
+            if len(payload.encode("utf-8")) > MAX_CHILD_FILE_BYTES:
+                raise ValueError("Scanner report exceeds the file limit")
+            json_file.write(payload)
         print(f"SUCCESS: Data saved securely to {output_filename}")
-    except IOError as io_err:
+    except (OSError, ValueError, TypeError) as io_err:
         print(f"CRITICAL ERROR: Failed to write output file {output_filename}. Details: {io_err}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    import resource
-    resource.setrlimit(resource.RLIMIT_CPU, (60, 60))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (4 * 1024 * 1024, 4 * 1024 * 1024))
     parser = argparse.ArgumentParser(description="Guarded axe-core accessibility scanner")
     parser.add_argument("--url", required=True, help="Target website URL to scan")
     parser.add_argument("--owner", default="", help="GitHub repository owner username")

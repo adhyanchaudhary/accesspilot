@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from .scan_network import PublicScanProxy
+from . import scanner_platform
 
 MAX_REPORT_BYTES = 2 * 1024 * 1024
 SCAN_TIMEOUT = 60
@@ -62,30 +63,35 @@ def normalize_audit(report, requested_url):
 
 class ScannerRunner:
     async def __call__(self, url):
-        if os.name != 'posix':
-            raise ScanFailure('scanner_requires_posix')
-        with tempfile.TemporaryDirectory(prefix='accesspilot-scan-') as work:
+        temporary = tempfile.TemporaryDirectory(prefix='accesspilot-scan-')
+        work = temporary.name
+        try:
             output = Path(work) / 'audit.json'
-            # No GitHub, OAuth, webhook, proxy-secret or application environment goes to Chromium.
-            env = {'PATH': os.defpath, 'HOME': work, 'TMPDIR': work, 'XDG_CACHE_HOME': work,
-                   'PYTHONUTF8': '1', 'LANG': 'C.UTF-8'}
-            browser_path = os.getenv('PLAYWRIGHT_BROWSERS_PATH')
-            if not browser_path:
-                browser_path = str(Path.home() / '.cache' / 'ms-playwright')
-            env['PLAYWRIGHT_BROWSERS_PATH'] = str(Path(browser_path).expanduser().resolve())
+            # Strict per-platform allowlist; never copy application credentials.
+            try:
+                env = scanner_platform.scanner_environment(work)
+            except scanner_platform.PlatformError as error:
+                raise ScanFailure(str(error)) from None
             process = None
             try:
                 async with asyncio.timeout(SCAN_TIMEOUT):
                     async with PublicScanProxy() as proxy:
-                        process = await asyncio.create_subprocess_exec(
-                            sys.executable, str(Path(__file__).with_name('scanner.py')),
-                            '--url', url, '--output', str(output), '--proxy', proxy.url,
-                            cwd=work, env=env, start_new_session=True,
-                            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                        if await process.wait() != 0:
+                        args = [sys.executable, str(Path(__file__).with_name('scanner.py')),
+                                '--url', url, '--output', str(output), '--proxy', proxy.url]
+                        if scanner_platform.is_windows():
+                            process = await scanner_platform.spawn_windows(args, work, env)
+                        else:
+                            process = await asyncio.create_subprocess_exec(*args,
+                                cwd=work, env=env, start_new_session=True,
+                                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                        code = await process.wait()
+                        if code == scanner_platform.CONTAINMENT_EXIT:
+                            raise ScanFailure('scanner_containment_failed')
+                        if code == scanner_platform.TIMEOUT_EXIT:
+                            raise ScanFailure('scan_timed_out')
+                        if code != 0:
                             raise ScanFailure('scanner_failed')
-                fd = os.open(output, os.O_RDONLY | os.O_NOFOLLOW)
-                with os.fdopen(fd, 'rb') as stream:
+                with scanner_platform.open_report(output) as stream:
                     info = os.fstat(stream.fileno())
                     if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_REPORT_BYTES:
                         raise ScanFailure('invalid_report')
@@ -95,13 +101,26 @@ class ScannerRunner:
                 return json.loads(raw)
             except TimeoutError:
                 raise ScanFailure('scan_timed_out') from None
+            except scanner_platform.PlatformError as error:
+                raise ScanFailure(str(error)) from None
             except (OSError, ValueError):
                 raise ScanFailure('scanner_failed') from None
             finally:
-                # Kill the entire process group, including orphaned browser children, even on success.
+                # Always dispose descendants before deleting their temporary directory.
                 if process:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-                    await process.wait()
+                    if scanner_platform.is_windows():
+                        try:
+                            await process.close()
+                        except scanner_platform.PlatformError as error:
+                            raise ScanFailure(str(error)) from None
+                    else:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                        await process.wait()
+        finally:
+            try:
+                await scanner_platform.cleanup_workspace(temporary)
+            except scanner_platform.PlatformError as error:
+                raise ScanFailure(str(error)) from None

@@ -2,6 +2,7 @@ import asyncio
 import copy
 import json
 import threading
+import sys
 
 import httpx
 import pytest
@@ -186,6 +187,7 @@ def test_scanner_still_writes_full_axe_report(tmp_path, axe_report, monkeypatch)
         route.abort.assert_called_once()
 
 
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX process-group implementation')
 @pytest.mark.parametrize('result', ['success', 'missing_output', 'nonzero', 'timeout'])
 def test_subprocess_adapter_isolates_environment_and_kills_process_group(monkeypatch, axe_report, result):
     from pathlib import Path
