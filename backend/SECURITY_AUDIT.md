@@ -82,3 +82,19 @@ No browser-network, GitHub-authentication or n8n integration controls were remov
 Validation on Linux: **136 passed, 2 skipped**. Windows-specific mocked checks run
 on all platforms; the two native Windows kernel tests are skipped on Linux. A real
 Windows Chromium scan remains to be verified.
+
+## Scanner failure diagnostics follow-up
+
+Child stdout/stderr remain suppressed; failures are now reported through a small
+private allowlisted status file and sanitized warning logs. No raw exceptions, URL/
+query strings, credentials, paths or page data are logged. Missing dependencies,
+browser builds, sandbox failures and proxy/navigation stages are distinguishable.
+The DNS-deny rule excludes only the required loopback proxy address; loopback bypass
+remains disabled and the public-address proxy policy is unchanged. Windows cleanup
+also retries known transient share-lock/directory-not-empty errors within the same
+bound. GitHub authentication and n8n integration are unchanged.
+
+Validation: **149 passed, 2 skipped**. Real subprocess diagnostics were verified on
+Linux, reporting a missing Playwright browser; the system browser's sandbox startup
+also failed. No real Chromium scan succeeded and the user's exact Windows failure
+remains unconfirmed. A fresh Windows diagnostic is required to establish that cause.

@@ -5,7 +5,9 @@ from urllib.parse import urlsplit
 
 
 class ScanNetworkError(Exception):
-    pass
+    def __init__(self, reason='policy_denied'):
+        self.reason = reason if reason in ('policy_denied', 'dns_failed') else 'policy_denied'
+        super().__init__(self.reason)
 
 
 async def public_ipv4(host, port):
@@ -21,7 +23,7 @@ async def public_ipv4(host, port):
             raise ScanNetworkError()  # No IPv6 transition/NAT64 routes.
         return ipv4
     except (ValueError, OSError, TimeoutError):
-        raise ScanNetworkError() from None
+        raise ScanNetworkError('dns_failed') from None
 
 
 class PublicScanProxy:
@@ -33,6 +35,7 @@ class PublicScanProxy:
         self.total = 0
         self.active = 0
         self.server = None
+        self.failures = {}
 
     async def __aenter__(self):
         self.server = await asyncio.start_server(self.handle, '127.0.0.1', 0, limit=16384)
@@ -118,8 +121,15 @@ class PublicScanProxy:
                         await asyncio.gather(*pipes, return_exceptions=True)
                 else:
                     await transfer(upstream, writer)
-        except (ScanNetworkError, ValueError, OSError, TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError):
-            pass  # Fail closed, without logging URLs/headers or making direct fallback requests.
+        except ScanNetworkError as error:
+            self.failures[error.reason] = self.failures.get(error.reason, 0) + 1
+        except (asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):
+            self.failures['protocol_error'] = self.failures.get('protocol_error', 0) + 1
+        except TimeoutError:
+            self.failures['timeout'] = self.failures.get('timeout', 0) + 1
+        except OSError:
+            self.failures['connection_failed'] = self.failures.get('connection_failed', 0) + 1
+        # Fail closed; never log URLs/headers or make a direct fallback request.
         finally:
             if counted:
                 self.active -= 1

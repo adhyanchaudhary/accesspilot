@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .scan_network import PublicScanProxy
 from . import scanner_platform
+from . import scanner_diagnostics as diagnostics
 
 MAX_REPORT_BYTES = 2 * 1024 * 1024
 SCAN_TIMEOUT = 60
@@ -61,23 +62,39 @@ def normalize_audit(report, requested_url):
         raise ScanFailure('invalid_report') from None
 
 
+def child_diagnostic(path):
+    try:
+        with scanner_platform.open_report(path) as stream:
+            raw = stream.read(4097)
+        if len(raw) <= 4096:
+            return diagnostics.validate(json.loads(raw))
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
 class ScannerRunner:
     async def __call__(self, url):
         temporary = tempfile.TemporaryDirectory(prefix='accesspilot-scan-')
         work = temporary.name
         try:
             output = Path(work) / 'audit.json'
+            diagnostic_path = Path(work) / 'scanner-diagnostic.json'
+            stage = 'bootstrap'
             # Strict per-platform allowlist; never copy application credentials.
             try:
                 env = scanner_platform.scanner_environment(work)
             except scanner_platform.PlatformError as error:
+                diagnostics.log(diagnostics.record('bootstrap', 'unexpected_failure', error))
                 raise ScanFailure(str(error)) from None
             process = None
             try:
                 async with asyncio.timeout(SCAN_TIMEOUT):
                     async with PublicScanProxy() as proxy:
                         args = [sys.executable, str(Path(__file__).with_name('scanner.py')),
-                                '--url', url, '--output', str(output), '--proxy', proxy.url]
+                                '--url', url, '--output', str(output), '--proxy', proxy.url,
+                                '--diagnostic', str(diagnostic_path)]
+                        stage = 'process_spawn'
                         if scanner_platform.is_windows():
                             process = await scanner_platform.spawn_windows(args, work, env)
                         else:
@@ -85,12 +102,20 @@ class ScannerRunner:
                                 cwd=work, env=env, start_new_session=True,
                                 stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
                         code = await process.wait()
+                        data = child_diagnostic(diagnostic_path)
+                        if code != 0:
+                            if not data or data['reason'] in ('running', 'ok'):
+                                data = diagnostics.record(data['stage'] if data else 'bootstrap', 'process_failed')
+                            data['return_code'] = code
+                            data['proxy_failures'] = getattr(proxy, 'failures', {})
+                            diagnostics.log(data)
                         if code == scanner_platform.CONTAINMENT_EXIT:
                             raise ScanFailure('scanner_containment_failed')
                         if code == scanner_platform.TIMEOUT_EXIT:
                             raise ScanFailure('scan_timed_out')
                         if code != 0:
-                            raise ScanFailure('scanner_failed')
+                            raise ScanFailure(diagnostics.API_ERRORS.get(data['reason'], 'scanner_failed'))
+                stage = 'report_read'
                 with scanner_platform.open_report(output) as stream:
                     info = os.fstat(stream.fileno())
                     if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_REPORT_BYTES:
@@ -100,10 +125,16 @@ class ScannerRunner:
                     raise ScanFailure('invalid_report')
                 return json.loads(raw)
             except TimeoutError:
+                data = child_diagnostic(diagnostic_path)
+                diagnostics.log(diagnostics.record(data['stage'] if data else stage, 'scan_timeout'))
                 raise ScanFailure('scan_timed_out') from None
             except scanner_platform.PlatformError as error:
+                diagnostics.log(diagnostics.record(stage, 'resource_limit', error))
                 raise ScanFailure(str(error)) from None
-            except (OSError, ValueError):
+            except (OSError, ValueError) as error:
+                child = child_diagnostic(diagnostic_path)
+                actual_stage = child['stage'] if child and stage == 'process_spawn' else stage
+                diagnostics.log(diagnostics.record(actual_stage, diagnostics.classify(actual_stage, error), error))
                 raise ScanFailure('scanner_failed') from None
             finally:
                 # Always dispose descendants before deleting their temporary directory.
@@ -112,6 +143,7 @@ class ScannerRunner:
                         try:
                             await process.close()
                         except scanner_platform.PlatformError as error:
+                            diagnostics.log(diagnostics.record('cleanup', 'cleanup_failed', error))
                             raise ScanFailure(str(error)) from None
                     else:
                         try:
@@ -122,5 +154,6 @@ class ScannerRunner:
         finally:
             try:
                 await scanner_platform.cleanup_workspace(temporary)
-            except scanner_platform.PlatformError as error:
-                raise ScanFailure(str(error)) from None
+            except (scanner_platform.PlatformError, OSError) as error:
+                diagnostics.log(diagnostics.record('cleanup', 'cleanup_failed', error))
+                raise ScanFailure('scanner_cleanup_failed') from None

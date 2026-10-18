@@ -242,6 +242,65 @@ This implementation was tested on Linux; the Windows-native tests and live Windo
 Chromium launch were **not executed here**. Existing Chromium restrictions, certificate
 verification, public-only proxy, report normalization and tunnel hardening are unchanged.
 
+### Diagnosing `scanner_failed` safely
+
+`example.com` is a valid public smoke-test target. The URL does not have to match
+its selected repository to scan, though resulting remediation would not be meaningful
+for an unrelated repository. A mismatch does not explain a Chromium startup failure.
+
+Previously every child exception exited with code 1 and stdout/stderr were discarded,
+so dependency import, browser launch, navigation, axe and report failures were all
+indistinguishable. The runner now reads a small private structured status file and
+logs **one allowlisted diagnostic** to the backend console on failure. Raw driver
+stdout/stderr remain discarded. Diagnostic records contain stage, fixed reason code,
+exception type, Python/Playwright version and numeric OS/browser/child exit codes
+when available. Proxy failures are counts under fixed categories, never destinations.
+They contain no URL/query, local path, environment values, request/response headers,
+exception message, stack trace, page HTML or credentials. The status file is bounded,
+read with the same no-symlink/reparse protections as reports and removed with the
+workspace. No public debug endpoint is added.
+
+Example safe output (illustrative):
+
+```text
+scanner_diagnostic {"stage":"browser_launch","reason":"browser_missing","exception":"Error","platform":"win32","return_code":1}
+```
+
+| Stage / reason | Next check |
+| --- | --- |
+| dependencies / dependency_missing | Use the same Python interpreter/venv as FastAPI; install backend/requirements.txt there. |
+| browser_launch / browser_missing | `python -m playwright install chromium` in that venv; another installation/channel or missing headless-shell build does not establish that the required Playwright binary exists. Verify the configured browser-cache path matches installation. |
+| browser_launch / sandbox_unavailable | Fix host sandbox support/policy. Do not add --no-sandbox or turn off Job Object containment. |
+| browser_launch / browser_launch_failed | Inspect the safe browser_exit_code if present; check installed browser/driver compatibility and Windows libraries. No raw browser logs are exposed. |
+| browser_launch / browser_profile_failed | Check that the isolated temporary profile is writable; do not point it at a real browser profile. |
+| driver_start / driver_start_failed | Check Python/Playwright installation and process policy; the wrapper still uses shell-free Popen on Windows. |
+| navigation / proxy_connection_failed | Check local firewall/endpoint protection permits Chromium to contact its ephemeral 127.0.0.1 proxy. The DNS-deny rule now explicitly excludes **only 127.0.0.1**, letting Chromium resolve the configured proxy; all destination requests still traverse the checked public-only proxy with loopback bypass disabled. |
+| navigation / navigation_failed | Check fixed proxy_failures counts: policy_denied, dns_failed, connection_failed, timeout or protocol_error. Do not relax private-address restrictions or allow a direct fallback. |
+| navigation / certificate_failed | Repair the host's certificate trust using supported configuration, never ignore HTTPS errors. |
+| navigation / navigation_timeout | Target did not load within the unchanged navigation deadline. |
+| axe / axe_failed | Engine injection/execution failed after navigation; report is not dispatched. |
+| report_read or report_write | Output is missing, malformed, blocked by filesystem permissions or exceeds existing limits. |
+| cleanup / cleanup_failed | Browser files remained locked after bounded Windows sharing-violation/directory-not-empty retries. |
+
+Some failures now have specific safe API codes such as `scanner_browser_missing`,
+`scanner_dependency_missing`, `scanner_proxy_failed`, `scanner_dns_failed`,
+`scanner_tls_failed` and `scanner_sandbox_unavailable`. Other failures retain
+`scanner_failed`, but the diagnostic identifies their stage. No diagnostic contains
+the job's GitHub or n8n secrets, and no GitHub/OAuth/n8n behavior was changed.
+
+After updating, restart `python -m backend.run --tunnel`, then create a **fresh** audit
+with a new Idempotency-Key. An old failed job/idempotency key intentionally keeps its
+old result. If the job still fails, use its safe diagnostic line to determine the
+Windows-specific cause. Do not paste raw browser/HTTP logs or secret values.
+
+Validation for this update: **149 passed, 2 native-Windows tests skipped** on Linux.
+A real default scanner subprocess reported browser_launch/browser_missing here.
+The available system Chromium separately failed its enabled-sandbox startup check
+(sandbox_unavailable). **No real Chromium accessibility scan succeeded**, and the
+specific Windows failure remains unconfirmed until a fresh Windows run provides its
+stage/reason. The proxy DNS exclusion is corrected, but it has not been demonstrated
+to be the cause of the reported Windows failure. No live integration success is claimed.
+
 Chromium runs with its **sandbox enabled**. The host must support it; do not add
 `--no-sandbox` to bypass a failure. Browser downloads require `cdn.playwright.dev`
 and any official download redirect destinations permitted by your network policy.

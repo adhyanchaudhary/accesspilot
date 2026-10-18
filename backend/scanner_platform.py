@@ -227,7 +227,9 @@ async def cleanup_workspace(temporary):
         try:
             await asyncio.to_thread(temporary.cleanup)
             return
-        except PermissionError:
+        except OSError as error:
+            if not isinstance(error, PermissionError) and getattr(error, 'winerror', None) not in (5, 32, 33, 145):
+                raise PlatformError('scanner_cleanup_failed') from None
             if attempt == 49:
                 raise PlatformError('scanner_cleanup_failed') from None
             await asyncio.sleep(.1)
