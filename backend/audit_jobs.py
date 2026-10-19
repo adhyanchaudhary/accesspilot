@@ -92,7 +92,7 @@ class AuditQueue:
                     await self.authorize(job)
                     credential = secrets.token_urlsafe(32)
                     job.update(status='dispatching', credential_hash=hashlib.sha256(credential.encode()).hexdigest(),
-                               summary=audit['summary'])
+                               summary=audit['summary'], audit=audit)
                     payload = {'schema_version': 1, 'job_id': job['id'], 'website_url': job['website_url'],
                                'repository': job['repository'], 'requested_by': job['owner_user_id'],
                                'base_sha': job['base_sha'], 'audit': audit,

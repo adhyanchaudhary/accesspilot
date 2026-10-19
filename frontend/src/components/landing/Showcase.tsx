@@ -48,9 +48,10 @@ export function Showcase() {
                   </span>
                 </div>
                 <div className={styles.reportShot}>
+                  <p className="p-3 text-xs text-center">Illustrative interface preview — not audit results</p>
                   <Image
                     src="/assets/audit-report.svg"
-                    alt="AccessPilot report showing a score of 92, category results, a resolved issues trend chart, and recent fixes."
+                    alt="Illustrative AccessPilot interface layout; run a scan to view actual findings."
                     width={720}
                     height={520}
                     unoptimized
@@ -60,10 +61,10 @@ export function Showcase() {
               </div>
 
               <div className={styles.reportChip} aria-hidden="true">
-                <span className={styles.reportChipScore}>92</span>
+                <span className={styles.reportChipScore}>axe</span>
                 <span>
-                  <strong>Accessibility score</strong>
-                  <small>Improving steadily</small>
+                  <strong>Real audit findings</strong>
+                  <small>Available after scanning</small>
                 </span>
               </div>
             </div>

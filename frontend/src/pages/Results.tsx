@@ -9,7 +9,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { Alert } from '../components/Alert'
 import { Corners } from '../components/Corners'
 import { EmptyState } from '../components/EmptyState'
@@ -23,14 +23,14 @@ import { ViolationSummary } from '../components/ViolationSummary'
 import { useAuth } from '../context/AuthContext'
 import { api, isApiError } from '../lib/api'
 import { describeAuditError } from '../lib/errors'
-import { getLatestJob, type LatestJob } from '../lib/storage'
 import { statusMeta } from '../lib/status'
 import type { AuditJob } from '../lib/types'
 
 const ACTIVE_INTERVAL = 2500
 const REMEDIATION_INTERVAL = 8000
 
-function nextDelay(job: AuditJob): number | null {
+export function nextDelay(job: AuditJob): number | null {
+  if (job.remediation?.status === 'failed' || job.remediation?.status === 'completed') return null
   if (statusMeta(job.status).active) return ACTIVE_INTERVAL
   // `submitted` does not mean remediation finished. Keep watching at a slower
   // cadence until the backend reports a pull request, without inventing one.
@@ -68,15 +68,12 @@ export function Results() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [meta, setMeta] = useState<LatestJob | null>(null)
+  const { state } = useLocation()
+  const meta = state?.jobId === jobId ? state as { websiteUrl: string; repoFullName: string } : null
   const [reloadKey, setReloadKey] = useState(0)
 
+  const failuresRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    const stored = getLatestJob()
-    setMeta(stored && stored.jobId === jobId ? stored : null)
-  }, [jobId])
 
   const schedule = useCallback((jobState: AuditJob) => {
     const delay = nextDelay(jobState)
@@ -93,15 +90,12 @@ export function Results() {
 
     const controller = new AbortController()
     let cancelled = false
-    let failures = 0
-    let haveJob = false
 
     async function poll() {
       try {
         const data = await api.getAudit(jobId, controller.signal)
         if (cancelled) return
-        haveJob = true
-        failures = 0
+        failuresRef.current = 0
         setJob(data)
         setError(null)
         setLoading(false)
@@ -119,11 +113,11 @@ export function Results() {
           setLoading(false)
           return
         }
-        failures += 1
+        failuresRef.current += 1
         const message = isApiError(cause)
           ? cause.message
           : 'Unable to reach the backend while checking this audit.'
-        if (!haveJob || failures >= 3) {
+        if (failuresRef.current >= 3) {
           setError(message)
           setLoading(false)
         } else {
@@ -224,7 +218,7 @@ export function Results() {
               )}
 
               <div className="grid gap-6 lg:grid-cols-3">
-                <div className="space-y-6 lg:col-span-2">
+                <div className="min-w-0 space-y-6 lg:col-span-2">
                   {job?.status === 'failed' && (
                     <Alert variant="error" title={describeAuditError(job.error).title}>
                       <p>{describeAuditError(job.error).body}</p>
@@ -246,6 +240,19 @@ export function Results() {
                   )}
 
                   {job && <ViolationSummary summary={job.summary} status={job.status} />}
+                  {job?.audit && <div className="card space-y-4 p-5">
+                    <h2 className="text-sm font-bold">Detected accessibility issues</h2>
+                    {job.audit.violations.length === 0 && <p>No axe violations detected on the scanned page. Manual checks may still be needed.</p>}
+                    {job.audit.violations.map(v => <details key={v.id}>
+                      <summary className="cursor-pointer font-semibold">{v.id} — {v.impact ?? 'Unspecified impact'}</summary>
+                      <p className="my-2 text-sm">{v.description}</p>
+                      {v.nodes.map((n, i) => <div key={i} className="my-3 overflow-auto text-xs">
+                        <pre className="whitespace-pre-wrap break-all">{JSON.stringify(n.target)}</pre>
+                        <pre className="whitespace-pre-wrap break-all">{n.html}</pre>
+                        {n.failureSummary && <p>{n.failureSummary}</p>}
+                      </div>)}
+                    </details>)}
+                  </div>}
 
                   {job && (
                     <RemediationPanel remediation={job.remediation} status={job.status} />
@@ -265,7 +272,7 @@ export function Results() {
                     </div>
                   )}
 
-                  {job?.status === 'submitted' && !job.remediation?.pr_url && (
+                  {job?.status === 'submitted' && !job.remediation?.pr_url && job.remediation?.status !== 'failed' && (
                     <div className="card p-5">
                       <Corners />
                       <div className="flex items-center gap-2 text-sm font-bold text-navy-900">

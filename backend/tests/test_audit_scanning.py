@@ -86,6 +86,8 @@ def test_async_submission_and_idempotent_delivery(scan_app, axe_report):
         status = client.get(f'/audits/{job_id}').json()
         assert status['status'] == 'submitted'
         assert status['summary']['violation_count'] == 1
+        assert status['audit']['violations'] == axe_report['violations']
+        assert 'credential_hash' not in status and 'source_service' not in status
         payload = upstream.jobs[0]
         assert payload['audit']['violations'] == axe_report['violations']
         assert payload['job_id'] == job_id and payload['repository']['id'] == 7

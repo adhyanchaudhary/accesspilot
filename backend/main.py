@@ -116,6 +116,8 @@ def create_app(settings=None, transport=None, scanner=None):
         # Only the public result fields; fingerprints, pending steps and commit
         # planning state stay server-side.
         state = job.get('remediation')
+        if job.get('remediation_error') and not (state and state.get('result')):
+            return {'status': 'failed', 'error': job['remediation_error']}
         if not state:
             return None
         result = state.get('result')
@@ -231,7 +233,8 @@ def create_app(settings=None, transport=None, scanner=None):
         if not job or job['owner_user_id'] != s['user']['id']:
             raise HTTPException(404, 'Audit job not found')
         return {'job_id': job['id'], 'status': job['status'], 'error': job.get('error'),
-                'summary': job.get('summary'), 'remediation': remediation_view(job)}
+                'summary': job.get('summary'), 'remediation': remediation_view(job),
+                'audit': {'violations': job['audit']['violations']} if job.get('audit') else None}
 
     app.add_middleware(RequestBoundary, tunnel_mode=settings.tunnel_mode)
     return app

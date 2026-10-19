@@ -38,10 +38,18 @@ export interface AuditSummary {
  * renders what the backend provides and never fabricates a PR or commit.
  */
 export interface RemediationResult {
-  status?: string
+  status?: 'in_progress' | 'completed' | 'failed'
+  error?: string
   pr_url?: string
   branch?: string
   commit_sha?: string
+}
+
+export interface Violation {
+  id: string
+  description: string
+  impact: string | null
+  nodes: { html: string; target: unknown[]; failureSummary?: string }[]
 }
 
 export interface AuditJob {
@@ -50,6 +58,7 @@ export interface AuditJob {
   error: string | null
   summary: AuditSummary | null
   remediation: RemediationResult | null
+  audit: { violations: Violation[] } | null
 }
 
 export interface SubmitAuditInput {

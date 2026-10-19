@@ -139,3 +139,29 @@ full backend suite. New mocked checks cover success, multiple-file single commit
 permissions, body/path/job/repo mismatches, binary source, stale/default/ref conflicts,
 concurrent retries, ambiguous responses and known credential rejection. No live GitHub
 writes were attempted.
+
+## Full-stack integration follow-up
+
+Owner-scoped GET /audits/{job_id} now exposes validated axe violations (IDs, impact,
+descriptions and original affected-element evidence) alongside counts. It never
+returns worker credentials, tokens, internal webhook data or write-planning state.
+React renders source/evidence as text. Authenticated remediation failures are
+reported using a fixed public error-code mapping; successful verified retries take
+precedence. Browser response-shape validation rejects malformed jobs/repositories,
+unexpected statuses, invalid counts and non-GitHub PR URLs. OAuth, CSRF, machine
+authorization, source scope and the hardened launcher are preserved.
+
+Local validation: 204 backend tests passed, 2 native Windows checks skipped;
+21 frontend tests passed; production build and TypeScript checks passed. A real
+Chromium UI check with mocked APIs passed at 1440px/390px, including correct audit
+serialization, evidence rendering and PR navigation. Process smoke checks passed
+for health, disabled docs, unauthenticated rejection and exact-origin CORS on port
+8001 (8000 was already occupied; the existing process was left untouched).
+These are not live GitHub/n8n/Gemini/Cloudflare or Windows-scanner validations.
+See ../LOCAL_E2E_TEST.md for the manual real-data checklist.
+
+There is no callback for n8n/Gemini failures before remediation, or no-change
+outcomes. Browser polling waits until a remediation result/error or job expiry;
+use n8n's actual execution to diagnose these cases. Scan reports now remain in
+bounded-lifetime in-memory jobs (up to the existing report/store caps); this adds
+memory use and is still a single-process development prototype.

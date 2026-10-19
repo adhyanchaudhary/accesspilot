@@ -26,7 +26,8 @@ export function Features() {
   const lastActiveRef = useRef(-1);
   const [active, setActive] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
+  const [hovered, setHovered] = useState(false);
 
   const renderFrame = useCallback(() => {
     const stage = stageRef.current;
@@ -70,7 +71,7 @@ export function Features() {
     let mounted = true;
     const tick = () => {
       if (!mounted) return;
-      if (!draggingRef.current && !paused) {
+      if (!draggingRef.current && !paused && !hovered) {
         rotationRef.current += velocityRef.current;
         velocityRef.current += (0.0045 - velocityRef.current) * 0.02;
       }
@@ -86,11 +87,12 @@ export function Features() {
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
       window.removeEventListener("resize", onResize);
     };
-  }, [renderFrame, paused]);
+  }, [renderFrame, paused, hovered]);
 
   const nudge = (direction: number) => {
     rotationRef.current += direction * (TAU / CARD_COUNT) * 2.8;
-    velocityRef.current = direction * 0.035;
+    velocityRef.current = paused ? 0 : direction * 0.035;
+    renderFrame();
   };
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -112,22 +114,17 @@ export function Features() {
     setIsDragging(false);
   };
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "ArrowRight") { event.preventDefault(); nudge(1); }
-      if (event.key === "ArrowLeft") { event.preventDefault(); nudge(-1); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
   const frontFeature = features[active];
   return (
     <section className={`${styles.section} ${styles.featureStackSection}`} id="features" aria-labelledby="features-title">
       <div className={styles.shell}>
         <SectionHeading index="01" kicker="Why AccessPilot" id="features-title" title="Accessibility, without the busywork." description="One connected workflow for finding issues, understanding their impact, and shipping fixes that hold up." center />
         <div className={styles.rolodexLayout}>
-          <div className={`${styles.rolodexStage} ${isDragging ? styles.rolodexDragging : ""}`} ref={stageRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} role="group" aria-label="Interactive rotating AccessPilot feature cards. Drag horizontally to spin.">
+          <div className={`${styles.rolodexStage} ${isDragging ? styles.rolodexDragging : ""}`} ref={stageRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} tabIndex={0} onKeyDown={event => {
+            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+              event.preventDefault(); nudge(event.key === 'ArrowRight' ? 1 : -1);
+            }
+          }} role="group" aria-label="Interactive rotating AccessPilot feature cards. Drag horizontally to spin.">
             <div className={styles.rolodexOrbit} aria-hidden="true" />
             {Array.from({ length: CARD_COUNT }, (_, i) => {
               const feature = features[i % features.length];
@@ -141,16 +138,16 @@ export function Features() {
             <div className={styles.rolodexCore} aria-hidden="true"><span>AP</span><i>ACCESSIBILITY ENGINE</i></div>
             <div className={styles.rolodexReadout} aria-hidden="true"><span>LIVE ROTATION</span><b>22 <i>CARDS</i></b><span>DRAG · THROW · EXPLORE</span></div>
           </div>
-          <div className={styles.rolodexInfo} aria-live="polite">
+          <div className={styles.rolodexInfo}>
             <div className={styles.rolodexInfoLabel}><span className={styles.rolodexStatus} /> FEATURE IN FOCUS <span>{frontFeature.number} / 04</span></div>
             <h3>{frontFeature.title}</h3><p>{frontFeature.description}</p>
             <div className={styles.rolodexBullets}>{frontFeature.bullets.map((item, i) => <span key={item}><b>0{i + 1}</b>{item}</span>)}</div>
             <div className={styles.rolodexControls}>
               <button type="button" className={styles.rolodexButtonGhost} onClick={() => nudge(-1)} aria-label="Rotate cards backwards">←</button>
-              <button type="button" className={styles.rolodexButton} onClick={() => nudge(1)} aria-label="Rotate cards forwards">Rotate deck <span>↗</span></button>
-              <button type="button" className={styles.rolodexButtonGhost} onClick={() => setPaused(value => !value)} aria-label={paused ? "Resume rotation" : "Pause rotation"}>{paused ? "▶" : "Ⅱ"}</button>
+              <button type="button" className={styles.rolodexButton} onClick={() => nudge(1)} aria-label="Spin feature cards">Spin cards <span aria-hidden="true">↗</span></button>
+              <button type="button" className={styles.rolodexButtonGhost} onClick={() => setPaused(value => !value)} aria-pressed={paused} aria-label={paused ? "Resume rotation" : "Pause rotation"}>{paused ? "▶" : "Ⅱ"}</button>
             </div>
-            <p className={styles.rolodexHint}>DRAG TO THROW <span>·</span> ARROW KEYS TO ROTATE <span>·</span> HOVER TO PAUSE</p>
+            <p className={styles.rolodexHint}>DRAG TO THROW <span>·</span> FOCUS CARDS + ARROW KEYS <span>·</span> HOVER TO PAUSE</p>
           </div>
         </div>
       </div>

@@ -41,6 +41,7 @@ export function Header() {
           </nav>
 
           <div className={styles.headerCta}>
+            {start.authed && <ButtonLink href="/dashboard" variant="ghost" size="sm">Dashboard</ButtonLink>}
             <ButtonLink
               href={start.href}
               onClick={start.onClick}
@@ -81,6 +82,7 @@ export function Header() {
               </a>
             ))}
           </nav>
+          {start.authed && <ButtonLink href="/dashboard" variant="ghost">Dashboard</ButtonLink>}
           <ButtonLink
             href={start.href}
             onClick={start.onClick}

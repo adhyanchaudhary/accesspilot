@@ -6,9 +6,9 @@ export function useStartScan() {
 
   return {
     authed,
-    label: authed ? 'Go to dashboard' : 'Start a free scan',
-    shortLabel: authed ? 'Dashboard' : 'Start a scan',
-    href: authed ? '/dashboard' : undefined,
+    label: 'Start a scan',
+    shortLabel: 'Start a scan',
+    href: authed ? '/dashboard#new-audit' : undefined,
     onClick: authed ? undefined : signIn,
   }
 }

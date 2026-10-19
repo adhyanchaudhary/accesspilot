@@ -149,6 +149,19 @@ def source_router():
 
     @router.post('/{job_id}/remediation')
     async def remediation(body: RemediationRequest, request: Request, access=Depends(authorized_job)):
-        return await remediate(body, request, access)
+        job = access[0]
+        job.pop('remediation_error', None)
+        try:
+            return await remediate(body, request, access)
+        except HTTPException as error:
+            # Public codes only; never persist upstream bodies or credentials.
+            job['remediation_error'] = {
+                401: 'authorization_failed', 403: 'authorization_failed',
+                409: 'conflict', 413: 'payload_too_large', 422: 'invalid_changes',
+            }.get(error.status_code, 'github_unavailable')
+            raise
+        except Exception:
+            job['remediation_error'] = 'outcome_unknown'
+            raise
 
     return router

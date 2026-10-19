@@ -98,7 +98,20 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new ApiError(response.status, message, detail)
   }
 
+  if (!payload || typeof payload !== 'object') throw new ApiError(502, 'Malformed backend response')
   return payload as T
+}
+
+function malformed(): never { throw new ApiError(502, 'Malformed backend response') }
+const validStatus = (s: unknown) => typeof s === 'string' && ['queued', 'scanning', 'dispatching', 'submitted', 'failed'].includes(s)
+const count = (n: unknown) => Number.isSafeInteger(n) && Number(n) >= 0
+function validRemediation(r: RemediationResult): boolean {
+  if (!['in_progress', 'completed', 'failed'].includes(r.status ?? '')) return false
+  if (r.error != null && typeof r.error !== 'string') return false
+  if (r.branch != null && typeof r.branch !== 'string') return false
+  if (r.commit_sha != null && (typeof r.commit_sha !== 'string' || !/^[a-f0-9]{40}$/.test(r.commit_sha))) return false
+  if (r.pr_url != null && (typeof r.pr_url !== 'string' || !/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/[1-9][0-9]*$/.test(r.pr_url))) return false
+  return r.status !== 'completed' || Boolean(r.pr_url && r.commit_sha && r.branch)
 }
 
 export const api = {
@@ -121,7 +134,10 @@ export const api = {
   },
 
   async getSession(signal?: AbortSignal): Promise<Session> {
-    return request<Session>('/auth/github/me', { signal })
+    const data = await request<Session>('/auth/github/me', { signal })
+    if (!Number.isSafeInteger(data.user?.id) || typeof data.user?.login !== 'string' ||
+        typeof data.csrf_token !== 'string' || !data.csrf_token) malformed()
+    return data
   },
 
   async listRepositories(signal?: AbortSignal): Promise<Repository[]> {
@@ -129,7 +145,11 @@ export const api = {
       '/github/repositories',
       { signal },
     )
-    return Array.isArray(data?.repositories) ? data.repositories : []
+    if (!Array.isArray(data.repositories) || !data.repositories.every(r => r &&
+      Number.isSafeInteger(r.id) && r.id > 0 && Number.isSafeInteger(r.installation_id) &&
+      r.installation_id > 0 && typeof r.full_name === 'string' &&
+      typeof r.default_branch === 'string' && typeof r.private === 'boolean')) malformed()
+    return data.repositories
   },
 
   async submitAudit(
@@ -137,12 +157,14 @@ export const api = {
     csrfToken: string,
     idempotencyKey: string,
   ): Promise<{ job_id: string; status: string }> {
-    return request('/audits', {
+    const data = await request<{ job_id: string; status: string }>('/audits', {
       method: 'POST',
       body: input,
       csrfToken,
       idempotencyKey,
     })
+    if (typeof data.job_id !== 'string' || !data.job_id || !validStatus(data.status)) malformed()
+    return data
   },
 
   async getAudit(jobId: string, signal?: AbortSignal): Promise<AuditJob> {
@@ -150,12 +172,22 @@ export const api = {
       `/audits/${encodeURIComponent(jobId)}`,
       { signal },
     )
+    if (data.job_id !== jobId || !validStatus(data.status) ||
+        (data.error != null && typeof data.error !== 'string') ||
+        (data.summary != null && (!count(data.summary.violation_count) || !count(data.summary.affected_element_count))) ||
+        (data.remediation != null && !validRemediation(data.remediation)) ||
+        (data.audit != null && (!Array.isArray(data.audit.violations) || !data.audit.violations.every(v =>
+          v && typeof v.id === 'string' && typeof v.description === 'string' &&
+          (v.impact === null || ['minor','moderate','serious','critical'].includes(v.impact)) &&
+          Array.isArray(v.nodes) && v.nodes.every(n => n && typeof n.html === 'string' && Array.isArray(n.target) &&
+          (n.failureSummary == null || typeof n.failureSummary === 'string')))))) malformed()
     return {
       job_id: data.job_id,
       status: data.status,
       error: data.error ?? null,
       summary: data.summary ?? null,
       remediation: data.remediation ?? null,
+      audit: data.audit ?? null,
     }
   },
 

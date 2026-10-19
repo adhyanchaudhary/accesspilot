@@ -71,9 +71,10 @@ export function Hero() {
               <span className={styles.heroOrbit} aria-hidden="true" />
               <div className={styles.heroFrame}>
                 <div className={styles.heroShot}>
+                  <p className="p-3 text-xs text-center">Illustrative interface preview — not audit results</p>
                   <Image
                     src="/assets/hero-audit.svg"
-                    alt="AccessPilot dashboard preview showing a 92 accessibility score, prioritized issues, an AI-suggested code fix, and resolved issues over time."
+                    alt="Illustrative AccessPilot interface layout; run a scan to view actual findings."
                     width={760}
                     height={620}
                     priority

@@ -1,8 +1,8 @@
 # AccessPilot local backend
 
 Python 3.12+, FastAPI, PyJWT/cryptography, httpx and python-dotenv. Run commands
-from the repository root. This is a local, single-worker implementation. No frontend
-is included in this previously empty checkout.
+from the repository root. This is a local, single-worker implementation. The React/TypeScript/Vite frontend lives in `frontend/`.
+See [LOCAL_E2E_TEST.md](../LOCAL_E2E_TEST.md) for Windows setup and the real-data checklist.
 
 ```bash
 python -m venv .venv
@@ -36,8 +36,8 @@ Under your existing **GitHub App**, configure:
 - App ID, Client ID and generated Client Secret in backend/.env. These are distinct
   values. Set `GITHUB_APP_SLUG` to the app's URL slug and configure its private key.
 - Repository permissions: Contents read/write and Pull requests read/write for the
-  eventual remediation workflow; Metadata read is implicit. Current backend tokens
-  are deliberately restricted to Contents read on one repository.
+  eventual remediation workflow; Metadata read is implicit. Read tokens are restricted to Contents read on one repository; remediation requests
+  a separate single-repository Contents/Pull requests write token.
 - Install the app on the intended repositories. Permission changes can require
   installation owner approval. User OAuth consent alone does not install the app.
 - Expiring user tokens may stay enabled. This backend requires login again on expiry
@@ -80,7 +80,7 @@ CORS permits credentials only from FRONTEND_ORIGIN. Requests use
 | GET /github/install | Session | Redirect to app installation page |
 | GET /github/repositories | Session | `{ "repositories": [{"id": 7, "installation_id": 3, "full_name": "owner/site", "private": true, "default_branch": "main"}] }` |
 | POST /audits | Session + CSRF + Origin | 202 `{ "job_id": "UUID", "status": "queued" }` (or existing job status on deduplication) |
-| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary, remediation}`; remediation is `null`, `{status: "in_progress", branch, commit_sha?}`, or `{status: "completed", branch, commit_sha, pr_url}` |
+| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary, audit, remediation}`; remediation is `null`, `{status: "in_progress", branch, commit_sha?}`, `{status: "failed", error}`, or `{status: "completed", branch, commit_sha, pr_url}` |
 | POST /auth/logout | Session + CSRF + Origin | `{ "status": "logged_out" }` |
 
 Interactive OpenAPI documentation is at `/docs` in the local profile only; tunnel mode disables it. Errors use `{ "detail": ... }`:
@@ -363,7 +363,7 @@ request or in an unbounded thread/background-task pool.
 Job states: **queued → scanning → dispatching → submitted**, or **failed**. Poll
 GET /audits/{job_id} with the submitting user's session; another user receives 404.
 The response includes `error`, `summary` (violation/affected-element counts when
-available) and an optional safe `remediation` view (branch/SHA/draft PR URL only),
+available), `audit: {violations: [...]}` once scanned, and an optional safe `remediation` view (status, safe failure code, branch/SHA/draft PR URL only),
 never machine credentials, raw scanner logs, fingerprints, pending write state or
 internal webhook details.
 `submitted` means n8n accepted the payload, not that agents finished or fixed code.
@@ -671,3 +671,20 @@ check verifies startup and /health. Live OAuth consent, app credentials/installa
 repository listing and source retrieval against GitHub, HTTPS routing, and the configured
 n8n workflow require your credentials
 and manual end-to-end testing; test passes do not establish those external integrations.
+
+## Full-stack local validation
+
+From `frontend/`, run `npm ci`, `npm test`, `npm run typecheck`, and `npm run build`.
+`npm run dev` uses strict port 3000. VITE_API_BASE_URL defaults to
+http://localhost:8000; never put privileged credentials or a temporary tunnel hostname
+in Vite configuration. The browser polls submitted jobs until a confirmed PR, an
+authenticated remediation failure, or job expiry; submitted is not completion.
+Only the owner sees actual scan findings and sanitized remediation result fields.
+Evidence HTML is rendered as text, not inserted into the DOM.
+
+Remediation errors do not change scan status: safe codes include authorization_failed,
+conflict, payload_too_large, invalid_changes, github_unavailable and outcome_unknown. A failed attempt
+can leave partial GitHub work; inspect n8n/branch state before retrying. A later
+verified successful retry replaces the failure view. There is no completion callback
+for upstream Gemini failures or zero-change workflows: absent a remediation request,
+the browser keeps waiting until expiry. See the manual checklist for diagnosis.

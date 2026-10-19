@@ -369,3 +369,37 @@ def test_audit_status_does_not_expose_internal_remediation_state(remediation):
     assert response.json()['remediation'] == {'status': 'in_progress',
         'branch': github.branch, 'commit_sha': COMMIT}
     assert 'private-fingerprint' not in response.text and 'pending' not in response.text
+
+
+def test_remediation_failure_is_reported_and_retry_clears_error(remediation):
+    _, job, github, post = remediation
+    github.fail = ('POST', '/repositories/7/pulls')
+    github.fail_status = 403
+    assert post().status_code == 403
+    data = post.client.get(f"/audits/{job['id']}").json()
+    assert data['status'] == 'submitted'
+    assert data['remediation'] == {'status': 'failed', 'error': 'authorization_failed'}
+    assert post().status_code == 200
+    assert post.client.get(f"/audits/{job['id']}").json()['remediation']['status'] == 'completed'
+
+
+def test_status_owner_isolation_and_findings_not_internal_state(remediation):
+    app, job, _, post = remediation
+    job['audit'] = {'violations': [{'id': 'image-alt', 'description': 'Alt missing', 'nodes': []}],
+                    'internal': 'never-public'}
+    data = post.client.get(f"/audits/{job['id']}")
+    assert data.json()['audit'] == {'violations': job['audit']['violations']}
+    assert 'never-public' not in data.text and 'credential_hash' not in data.text
+    job['owner_user_id'] = 9999
+    assert post.client.get(f"/audits/{job['id']}").status_code == 404
+
+
+def test_unexpected_remediation_failure_reports_no_sensitive_details(remediation, monkeypatch):
+    _, job, _, post = remediation
+    async def broken(*args, **kwargs):
+        raise RuntimeError('private-upstream-detail')
+    monkeypatch.setattr('backend.remediation.source_text', broken)
+    assert post().status_code == 500
+    response = post.client.get(f"/audits/{job['id']}")
+    assert response.json()['remediation'] == {'status': 'failed', 'error': 'outcome_unknown'}
+    assert 'private-upstream-detail' not in response.text

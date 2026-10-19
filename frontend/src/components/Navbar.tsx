@@ -17,7 +17,7 @@ export function Navbar() {
     <header className="sticky top-0 z-30 border-b border-navy-100/80 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto flex h-[68px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <Logo to={status === 'authenticated' ? '/dashboard' : '/'} />
+          <Logo to="/" />
           <span className="hidden flex-col gap-1 border-l border-navy-200 pl-3 lg:flex">
             <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.2em] text-navy-400">
               A11Y Engine · v1.0
@@ -29,11 +29,11 @@ export function Navbar() {
           </span>
         </div>
 
-        <nav className="flex items-center gap-1">
+        <nav aria-label="Workspace navigation" className="flex items-center gap-1">
           {status === 'authenticated' && (
-            <NavLink to="/dashboard" className={navClass}>
+            <NavLink to="/dashboard" className={navClass} aria-label="Dashboard">
               <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span>Dashboard</span>
             </NavLink>
           )}
         </nav>

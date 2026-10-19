@@ -57,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStatus('unauthenticated')
         return
       }
+      setUser(null)
+      setCsrfToken(null)
       setStatus('unauthenticated')
       setError(
         isApiError(cause)
@@ -77,14 +79,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     const token = csrfToken
-    setUser(null)
-    setCsrfToken(null)
-    setStatus('unauthenticated')
     if (!token) return
     try {
       await api.logout(token)
-    } catch {
-      // Local sign-out already completed; a failed revoke must not trap the user.
+      setUser(null)
+      setCsrfToken(null)
+      setStatus('unauthenticated')
+    } catch (cause) {
+      if (isApiError(cause) && cause.isSessionExpired) {
+        setUser(null)
+        setCsrfToken(null)
+        setStatus('unauthenticated')
+      } else {
+        setError('Sign-out failed. Your server session may still be active; retry sign-out.')
+      }
     }
   }, [csrfToken])
 

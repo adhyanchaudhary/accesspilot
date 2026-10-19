@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="620" viewBox="0 0 760 620" role="img" aria-labelledby="title desc">
   <title id="title">AccessPilot accessibility audit dashboard</title>
-  <desc id="desc">A product preview showing an accessibility score of 92, prioritized issues, an AI-suggested code fix, and resolved issues over time.</desc>
+  <desc id="desc">Illustrative interface layout. This graphic contains no actual scan results.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#eef5ff"/>
@@ -72,14 +72,14 @@
   </g>
 
   <text x="104" y="142" class="t" font-size="20" font-weight="700" fill="#0a1f44">Audit overview</text>
-  <text x="104" y="162" class="t" font-size="10.5" fill="#7588a7">example.com · Last scan 2 min ago</text>
+  <text x="104" y="162" class="t" font-size="10.5" fill="#7588a7">Interface illustration · not a scan report</text>
 
   <g>
     <circle cx="574" cy="160" r="37" fill="none" stroke="#e7effb" stroke-width="8"/>
     <circle cx="574" cy="160" r="37" fill="none" stroke="url(#score)" stroke-width="8" stroke-linecap="round"
             stroke-dasharray="214 232.5" transform="rotate(-90 574 160)"/>
-    <text x="574" y="164" class="t" font-size="19" font-weight="800" fill="#0a1f44" text-anchor="middle">92</text>
-    <text x="574" y="178" class="t" font-size="7.5" font-weight="600" fill="#7b8dab" text-anchor="middle" letter-spacing=".6">SCORE</text>
+    <text x="574" y="164" class="t" font-size="19" font-weight="800" fill="#0a1f44" text-anchor="middle">—</text>
+    <text x="574" y="178" class="t" font-size="7.5" font-weight="600" fill="#7b8dab" text-anchor="middle" letter-spacing=".6">SCAN</text>
   </g>
 
   <g>
@@ -87,7 +87,7 @@
     <text x="120" y="222" class="t" font-size="12.5" font-weight="700" fill="#0a1f44">Prioritized issues</text>
     <rect x="340" y="208" width="72" height="21" rx="10.5" fill="#fff1f0"/>
     <circle cx="352" cy="218.5" r="3" fill="#f05a5a"/>
-    <text x="360" y="222" class="t" font-size="9" font-weight="700" fill="#d64545">12 open</text>
+    <text x="360" y="222" class="t" font-size="9" font-weight="700" fill="#d64545">Examples</text>
 
     <rect x="116" y="236" width="300" height="48" rx="12" fill="#fff" stroke="#e7eef9"/>
     <circle cx="137" cy="260" r="13" fill="#fff1e4"/>
@@ -95,7 +95,7 @@
     <path d="M137 256.5v3.4" stroke="#e99b2f" stroke-width="1.6" stroke-linecap="round"/>
     <circle cx="137" cy="262.6" r=".9" fill="#e99b2f"/>
     <text x="158" y="256" class="t" font-size="11" font-weight="600" fill="#18325c">Low contrast text</text>
-    <text x="158" y="271" class="t" font-size="9" fill="#7b8dab">4.2:1 ratio · Serious</text>
+    <text x="158" y="271" class="t" font-size="9" fill="#7b8dab">Contrast check example</text>
     <rect x="356" y="247" width="46" height="18" rx="9" fill="#ffede3"/>
     <text x="379" y="259.5" class="t" font-size="8.5" font-weight="700" fill="#c46612" text-anchor="middle">High</text>
 
@@ -105,7 +105,7 @@
     <path d="M134 317l3.6-3.6 2.2 2.2" fill="none" stroke="#6d63d9" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="141" cy="311.5" r="1.2" fill="#6d63d9"/>
     <text x="158" y="312" class="t" font-size="11" font-weight="600" fill="#18325c">Missing image alt</text>
-    <text x="158" y="327" class="t" font-size="9" fill="#7b8dab">3 instances · Moderate</text>
+    <text x="158" y="327" class="t" font-size="9" fill="#7b8dab">Image check example</text>
     <rect x="356" y="303" width="46" height="18" rx="9" fill="#eeeaff"/>
     <text x="379" y="315.5" class="t" font-size="8.5" font-weight="700" fill="#6248c7" text-anchor="middle">Med</text>
 
@@ -116,7 +116,7 @@
     <text x="158" y="368" class="t" font-size="11" font-weight="600" fill="#18325c">Focus order</text>
     <text x="158" y="383" class="t" font-size="9" fill="#7b8dab">Keyboard trap · Serious</text>
     <rect x="356" y="359" width="46" height="18" rx="9" fill="#e5f8f2"/>
-    <text x="379" y="371.5" class="t" font-size="8.5" font-weight="700" fill="#0c866d" text-anchor="middle">Fixed</text>
+    <text x="379" y="371.5" class="t" font-size="8.5" font-weight="700" fill="#0c866d" text-anchor="middle">Review</text>
   </g>
 
   <g>
@@ -133,7 +133,7 @@
     <text x="466" y="315" class="m" font-size="8" fill="#7ea6ff">&lt;/button&gt;</text>
     <rect x="456" y="321" width="144" height="13" rx="3" fill="#1d2a44"/>
     <circle cx="463" cy="327.5" r="2.2" fill="#3ddc97"/>
-    <text x="470" y="330.5" class="m" font-size="7.5" fill="#67e4ae">Contrast 7.1:1</text>
+    <text x="470" y="330.5" class="m" font-size="7.5" fill="#67e4ae">Review contrast</text>
 
     <rect x="456" y="345" width="144" height="32" rx="16" fill="url(#violet)"/>
     <path d="M470 356l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="#fff" opacity=".85"/>
@@ -144,10 +144,10 @@
   <g>
     <rect x="104" y="420" width="508" height="104" rx="16" fill="#fff" stroke="#e3edfb"/>
     <text x="120" y="444" class="t" font-size="11" font-weight="600" fill="#18325c">Impact this week</text>
-    <text x="120" y="464" class="t" font-size="15" font-weight="800" fill="#0a1f44">38 of 47 issues resolved</text>
+    <text x="120" y="464" class="t" font-size="15" font-weight="800" fill="#0a1f44">Review accessibility findings</text>
     <rect x="120" y="474" width="70" height="19" rx="9.5" fill="#e9f9f3"/>
     <path d="M130 486l3.5-3.5 3 3 3.5-4.5" fill="none" stroke="#0e9d7d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="145" y="487.5" class="t" font-size="8.5" font-weight="700" fill="#0b8a6f">+18% this week</text>
+    <text x="145" y="487.5" class="t" font-size="8.5" font-weight="700" fill="#0b8a6f">No scan data yet</text>
 
     <path d="M366 504h228" stroke="#edf2fa"/>
     <rect x="368" y="484" width="18" height="20" rx="5" fill="#d8e7ff"/>
@@ -172,8 +172,8 @@
     <rect x="6" y="424" width="196" height="82" rx="18" fill="#fff"/>
     <circle cx="38" cy="458" r="17" fill="url(#green)"/>
     <path d="M30 458l5.5 5.5L46 452" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
-    <text x="64" y="450" class="t" font-size="11.5" font-weight="700" fill="#0a1f44">Fix verified</text>
-    <text x="64" y="465" class="t" font-size="9" fill="#7b8dab">Contrast now 7.1:1</text>
+    <text x="64" y="450" class="t" font-size="11.5" font-weight="700" fill="#0a1f44">Review fixes</text>
+    <text x="64" y="465" class="t" font-size="9" fill="#7b8dab">Review contrast</text>
     <rect x="64" y="474" width="112" height="6" rx="3" fill="#e9f4f0"/>
     <rect x="64" y="474" width="112" height="6" rx="3" fill="url(#green)"/>
   </g>

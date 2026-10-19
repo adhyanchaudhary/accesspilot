@@ -1,18 +1,15 @@
 import {
-  ArrowRight,
   GitBranch,
   Github,
   Globe,
-  History,
   Lock,
   PlugZap,
-  RefreshCw,
   ScanSearch,
-  Search,
   Sparkles,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { RepositoryPicker } from '../components/RepositoryPicker'
 import { Alert } from '../components/Alert'
 import { Corners } from '../components/Corners'
 import { EmptyState } from '../components/EmptyState'
@@ -21,7 +18,6 @@ import { ServiceHealth } from '../components/ServiceHealth'
 import { Spinner } from '../components/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { api, isApiError } from '../lib/api'
-import { getLatestJob, setLatestJob, type LatestJob } from '../lib/storage'
 import type { Repository } from '../lib/types'
 
 type ReposState = 'loading' | 'ready' | 'error'
@@ -38,16 +34,18 @@ function isValidHttpUrl(value: string): boolean {
 export function Dashboard() {
   const { csrfToken, expireSession } = useAuth()
   const navigate = useNavigate()
+  const { hash } = useLocation()
+  useEffect(() => {
+    if (hash === '#new-audit') document.getElementById('new-audit')?.scrollIntoView?.({ behavior: 'auto', block: 'start' })
+  }, [hash])
 
   const [repos, setRepos] = useState<Repository[]>([])
   const [reposState, setReposState] = useState<ReposState>('loading')
   const [reposError, setReposError] = useState<string | null>(null)
-  const [filter, setFilter] = useState('')
   const [selectedRepoId, setSelectedRepoId] = useState<number | null>(null)
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
-  const [latest, setLatest] = useState<LatestJob | null>(() => getLatestJob())
 
   const idempotencyRef = useRef<string | null>(null)
 
@@ -90,12 +88,6 @@ export function Dashboard() {
     [repos, selectedRepoId],
   )
 
-  const visibleRepos = useMemo(() => {
-    const query = filter.trim().toLowerCase()
-    if (!query) return repos
-    return repos.filter((repo) => repo.full_name.toLowerCase().includes(query))
-  }, [repos, filter])
-
   function invalidateIdempotency() {
     idempotencyRef.current = null
   }
@@ -129,16 +121,12 @@ export function Dashboard() {
         csrfToken,
         idempotencyRef.current,
       )
-      const job: LatestJob = {
+      idempotencyRef.current = null
+      navigate(`/audits/${result.job_id}`, { state: {
         jobId: result.job_id,
         websiteUrl: websiteUrl.trim(),
         repoFullName: selectedRepo.full_name,
-        createdAt: new Date().toISOString(),
-      }
-      setLatestJob(job)
-      setLatest(job)
-      idempotencyRef.current = null
-      navigate(`/audits/${result.job_id}`)
+      } })
     } catch (cause) {
       if (isApiError(cause) && cause.isSessionExpired) {
         expireSession()
@@ -177,7 +165,7 @@ export function Dashboard() {
 
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="card space-y-6 p-6">
+            <form id="new-audit" onSubmit={handleSubmit} className="card scroll-mt-24 space-y-6 p-6">
               <Corners />
               <div>
                 <div className="mb-1.5 flex items-center justify-between">
@@ -195,18 +183,6 @@ export function Dashboard() {
                         Manage
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => void loadRepositories()}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-navy-500 hover:text-brand-700"
-                      disabled={reposState === 'loading'}
-                    >
-                      <RefreshCw
-                        className={`h-3.5 w-3.5 ${reposState === 'loading' ? 'animate-spin' : ''}`}
-                        aria-hidden="true"
-                      />
-                      Refresh
-                    </button>
                   </div>
                 </div>
 
@@ -231,7 +207,7 @@ export function Dashboard() {
                   <EmptyState
                     icon={PlugZap}
                     title="No repositories available"
-                    description="Install the AccessPilot GitHub App on at least one repository, then refresh."
+                    description="Install the AccessPilot GitHub App on at least one repository, then return to the dashboard."
                     action={
                       <button
                         type="button"
@@ -247,39 +223,10 @@ export function Dashboard() {
 
                 {reposState === 'ready' && repos.length > 0 && (
                   <div className="space-y-3">
-                    {repos.length > 6 && (
-                      <div className="relative">
-                        <Search
-                          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300"
-                          aria-hidden="true"
-                        />
-                        <input
-                          type="search"
-                          value={filter}
-                          onChange={(event) => setFilter(event.target.value)}
-                          placeholder="Filter repositories"
-                          className="input pl-9"
-                          aria-label="Filter repositories"
-                        />
-                      </div>
-                    )}
-                    <select
-                      id="repository"
-                      value={selectedRepoId ?? ''}
-                      onChange={(event) => {
-                        setSelectedRepoId(Number(event.target.value))
-                        invalidateIdempotency()
-                      }}
-                      className="input"
-                      size={visibleRepos.length > 1 ? Math.min(visibleRepos.length, 6) : 1}
-                    >
-                      {visibleRepos.map((repo) => (
-                        <option key={repo.id} value={repo.id}>
-                          {repo.full_name}
-                          {repo.private ? ' (private)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <RepositoryPicker repositories={repos} selected={selectedRepo} onSelect={repo => {
+                      setSelectedRepoId(repo.id)
+                      invalidateIdempotency()
+                    }} />
                     {selectedRepo && (
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
                         <span className="inline-flex items-center gap-1.5">
@@ -361,37 +308,6 @@ export function Dashboard() {
 
           <aside className="space-y-6">
             <ServiceHealth />
-
-            {latest && (
-              <div className="card p-5">
-                <Corners />
-                <div className="flex items-center gap-2 text-sm font-bold text-navy-900">
-                  <History className="h-4 w-4 text-brand-600" aria-hidden="true" />
-                  Latest audit
-                </div>
-                <p className="mt-2 truncate font-mono text-xs text-navy-500" title={latest.jobId}>
-                  {latest.jobId}
-                </p>
-                <dl className="mt-3 space-y-1 text-xs text-navy-500">
-                  {latest.repoFullName && (
-                    <div className="flex items-center gap-1.5">
-                      <Github className="h-3.5 w-3.5" aria-hidden="true" />
-                      {latest.repoFullName}
-                    </div>
-                  )}
-                  {latest.websiteUrl && (
-                    <div className="flex items-center gap-1.5 truncate">
-                      <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{latest.websiteUrl}</span>
-                    </div>
-                  )}
-                </dl>
-                <Link to={`/audits/${latest.jobId}`} className="btn-secondary mt-4 w-full">
-                  View results
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </div>
-            )}
 
             <div className="card p-5">
               <Corners />
