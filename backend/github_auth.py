@@ -75,7 +75,7 @@ class GitHub:
     def __init__(self, settings: Settings, client: httpx.AsyncClient):
         self.settings, self.client = settings, client
 
-    async def request(self, method, path, token, **kwargs):
+    async def request(self, method, path, token, *, missing_ok=False, conflict_is_409=False, **kwargs):
         try:
             response = await bounded_request(self.client,
                 method, 'https://api.github.com' + path,
@@ -84,6 +84,10 @@ class GitHub:
                          'X-GitHub-Api-Version': '2022-11-28'}, **kwargs)
         except httpx.RequestError:
             raise HTTPException(502, 'GitHub is unavailable') from None
+        if response.status_code == 404 and missing_ok and method == 'GET':
+            return None
+        if response.status_code in (409, 422) and conflict_is_409:
+            raise HTTPException(409, 'GitHub rejected the operation due to a conflict')
         if response.status_code == 401:
             raise HTTPException(401, 'GitHub authorization expired or was revoked; log in again')
         if response.status_code in (403, 404):
@@ -109,12 +113,13 @@ class GitHub:
         """Administrative helper; deliberately not exposed to browser users."""
         return await self.pages('/app/installations', app_jwt(self.settings))
 
-    async def installation_token(self, installation_id, repository_id):
-        # Fresh tokens avoid expired-cache races. Grant read-only access to one repository.
+    async def installation_token(self, installation_id, repository_id, *, write=False):
+        # Fresh, single-repository tokens; writes are an explicit server-side opt-in.
         return await self.request('POST', f'/app/installations/{installation_id}/access_tokens',
                                   app_jwt(self.settings), json={
                                       'repository_ids': [repository_id],
-                                      'permissions': {'contents': 'read'}})
+                                      'permissions': ({'contents': 'write', 'pull_requests': 'write'}
+                                                      if write else {'contents': 'read'})})
 
     async def repositories(self, user_token, installation_id=None):
         installations = await self.pages('/user/installations', user_token, 'installations')

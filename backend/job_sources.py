@@ -1,4 +1,4 @@
-"""Read-only, immutable repository snapshots for authenticated job workers."""
+"""Pinned repository snapshots and shared job-scoped worker authorization."""
 import base64
 import binascii
 import hashlib
@@ -49,7 +49,7 @@ async def snapshot(github, repo, token):
         raise HTTPException(502, 'GitHub returned an invalid commit') from None
 
 
-async def source_tree(github, job, token):
+async def pinned_tree(github, job, token):
     data = await github.request('GET',
         f"/repositories/{job['repository_id']}/git/trees/{job['tree_sha']}", token,
         params={'recursive': '1'})
@@ -57,6 +57,11 @@ async def source_tree(github, job, token):
         raise HTTPException(413, 'Repository tree is incomplete or too large')
     if len(data['tree']) > MAX_TREE_ENTRIES:
         raise HTTPException(413, 'Repository tree exceeds the entry limit')
+    return data
+
+
+async def source_tree(github, job, token):
+    data = await pinned_tree(github, job, token)
     result = []
     for entry in data['tree']:
         path = entry.get('path', '')
@@ -67,33 +72,59 @@ async def source_tree(github, job, token):
     return result
 
 
+async def source_text(github, job, token, entry):
+    # Fetch only a blob proven to be present in this job's immutable tree.
+    data = await github.request('GET',
+        f"/repositories/{job['repository_id']}/git/blobs/{entry['sha']}", token)
+    try:
+        encoded = data['content']
+        if (data.get('encoding') != 'base64' or data.get('size') != entry['size']
+                or not isinstance(encoded, str) or len(encoded) > MAX_FILE_BYTES * 2):
+            raise ValueError()
+        content = base64.b64decode(encoded.replace('\n', ''), validate=True)
+        if len(content) != entry['size'] or b'\x00' in content:
+            raise ValueError()
+        digest = hashlib.sha1(f'blob {len(content)}\0'.encode() + content).hexdigest()
+        if digest != entry['sha']:
+            raise ValueError()
+        text = content.decode('utf-8')
+        if re.search(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----', text):
+            raise ValueError()
+    except (KeyError, ValueError, UnicodeError, binascii.Error):
+        raise HTTPException(422, 'Blob is not valid, bounded UTF-8 source text') from None
+    return text
+
+
+bearer = HTTPBearer(auto_error=False)
+
+
+async def authorized_job(job_id: str, request: Request,
+        credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
+    # Browser cookies are never accepted as worker authentication.
+    if credentials is None or credentials.scheme.lower() != 'bearer':
+        raise HTTPException(401, 'Job service credential required', headers={'WWW-Authenticate': 'Bearer'})
+    job = request.app.state.jobs.get(job_id)
+    supplied = hashlib.sha256(credentials.credentials.encode()).hexdigest()
+    if (not job or job.get('id') != job_id or job.get('status') not in ('dispatching', 'submitted')
+            or not secrets.compare_digest(job['credential_hash'], supplied)):
+        raise HTTPException(403, 'Job service access denied')
+    owner = request.app.state.sessions.get(job['owner_session'])
+    if not owner or owner['user']['id'] != job['owner_user_id']:
+        raise HTTPException(403, 'Job owner session is no longer authorized')
+    github = request.app.state.github
+    user = await github.request('GET', '/user', owner['token'])
+    if user.get('id') != job['owner_user_id']:
+        raise HTTPException(403, 'Job owner identity does not match')
+    _, token = await github.repository_access(owner['token'], job['installation_id'], job['repository_id'])
+    # Recheck local expiry after network awaits, including concurrent logout.
+    if (job['expires'] <= time.time()
+            or request.app.state.sessions.get(job['owner_session']) is not owner):
+        raise HTTPException(403, 'Job authorization expired')
+    return job, github, token
+
+
 def source_router():
     router = APIRouter(prefix='/service/jobs', tags=['Job source service'])
-    bearer = HTTPBearer(auto_error=False)
-
-    async def authorized_job(job_id: str, request: Request,
-            credentials: HTTPAuthorizationCredentials | None = Depends(bearer)):
-        # Browser cookies are never accepted as worker authentication.
-        if credentials is None or credentials.scheme.lower() != 'bearer':
-            raise HTTPException(401, 'Job service credential required', headers={'WWW-Authenticate': 'Bearer'})
-        job = request.app.state.jobs.get(job_id)
-        supplied = hashlib.sha256(credentials.credentials.encode()).hexdigest()
-        if (not job or job.get('status') not in ('dispatching', 'submitted')
-                or not secrets.compare_digest(job['credential_hash'], supplied)):
-            raise HTTPException(403, 'Job service access denied')
-        owner = request.app.state.sessions.get(job['owner_session'])
-        if not owner or owner['user']['id'] != job['owner_user_id']:
-            raise HTTPException(403, 'Job owner session is no longer authorized')
-        github = request.app.state.github
-        user = await github.request('GET', '/user', owner['token'])
-        if user.get('id') != job['owner_user_id']:
-            raise HTTPException(403, 'Job owner identity does not match')
-        _, token = await github.repository_access(owner['token'], job['installation_id'], job['repository_id'])
-        # Recheck local expiry after network awaits, including concurrent logout.
-        if (job['expires'] <= time.time()
-                or request.app.state.sessions.get(job['owner_session']) is not owner):
-            raise HTTPException(403, 'Job authorization expired')
-        return job, github, token
 
     @router.get('/{job_id}/tree')
     async def tree(access=Depends(authorized_job)):
@@ -110,26 +141,14 @@ def source_router():
         entry = next((entry for entry in files if entry['path'] == path), None)
         if entry is None:
             raise HTTPException(404, 'Source file not found in the job snapshot')
-        # Fetch only a blob proven to be present in this job's immutable tree.
-        data = await github.request('GET',
-            f"/repositories/{job['repository_id']}/git/blobs/{entry['sha']}", token)
-        try:
-            encoded = data['content']
-            if (data.get('encoding') != 'base64' or data.get('size') != entry['size']
-                    or not isinstance(encoded, str) or len(encoded) > MAX_FILE_BYTES * 2):
-                raise ValueError()
-            content = base64.b64decode(encoded.replace('\n', ''), validate=True)
-            if len(content) != entry['size'] or b'\x00' in content:
-                raise ValueError()
-            digest = hashlib.sha1(f'blob {len(content)}\0'.encode() + content).hexdigest()
-            if digest != entry['sha']:
-                raise ValueError()
-            text = content.decode('utf-8')
-            if re.search(r'-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----', text):
-                raise ValueError()
-        except (KeyError, ValueError, UnicodeError, binascii.Error):
-            raise HTTPException(422, 'Blob is not valid, bounded UTF-8 source text') from None
+        text = await source_text(github, job, token, entry)
         return {'job_id': job['id'], 'base_sha': job['base_sha'], 'path': path,
                 'blob_sha': entry['sha'], 'text': text}
+
+    from .remediation import RemediationRequest, remediate
+
+    @router.post('/{job_id}/remediation')
+    async def remediation(body: RemediationRequest, request: Request, access=Depends(authorized_job)):
+        return await remediate(body, request, access)
 
     return router

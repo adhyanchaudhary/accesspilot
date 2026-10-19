@@ -125,7 +125,7 @@ and returns 202 immediately after queue admission (GitHub/URL preflight still ru
 that request). The worker runs `backend/scanner.py`, captures audit.json and validates
 it before sending this authenticated payload. A 202 means **queued locally**, not yet
 accepted by n8n. Job status becomes `submitted` only after n8n returns 2xx; this still
-does not mean Gemini remediation completed. No GitHub write routes are implemented.
+does not mean Gemini remediation completed. The bounded draft-remediation endpoint is documented below.
 
 ```json
 {
@@ -528,7 +528,8 @@ n8n Cloud **cannot call localhost on your laptop**. No tunnel is created by this
 Choose one of these integration patterns:
 
 1. **HTTPS callback route:** run an authenticated development tunnel or reverse proxy
-   to the local backend, exposing only `/service/jobs/*` with GET allowed. Terminate
+   to the local backend, allowing GET for tree/source and POST only for the remediation
+   route described below. Terminate
    TLS, require an additional gateway machine identity if supported, and preserve the
    Authorization header for the backend's mandatory job-credential check. Keep browser
    OAuth/login endpoints local. Set a trusted HTTPS base URL in the n8n workflow
@@ -553,29 +554,108 @@ the credential to HTTP nodes; do not pass that branch to either Gemini agent. Ke
 redirect following off to prevent sending the credential to another host. The paths
 in the webhook are relative; no public URL is inferred from request Host headers.
 
-## Future remediation contract (design only; not implemented routes)
+## Job-scoped draft remediation (hackathon prototype)
 
-Jobs now capture user, installation/repository IDs and an immutable snapshot in memory.
-Future remediation needs durable storage of this context and reviewed proposals. The
-source service retrieves the pinned tree and bounded blobs after checking access. Give Agent 1
-only audit findings + a bounded tree; validate its candidate paths against that tree.
-Give Agent 2 only approved source files and findings. Treat both agents' output as
-untrusted data; exclude secrets and binary/generated files.
+n8n may call **POST /service/jobs/{job_id}/remediation** with the **same per-job Bearer
+credential** used for tree/source. Browser cookies are insufficient. Use a trusted
+Cloudflare HTTPS base URL configured in n8n, and the original webhook's job_id and
+source_service.credential, never an agent-selected URL/job/token. Keep redirects off.
+No new PAT or GitHub token belongs in n8n. Do not expose the credential to Gemini,
+frontend code, execution logs or a PR body. This endpoint extends the existing job
+credential to a bounded **write capability**, not just read access.
 
-A future `POST /jobs/{job_id}/proposals` accepts an authenticated worker result:
-`{schema_version:1, base_sha, changes:[{path, original_blob_sha, proposed_content}], summary}`.
-Worker authentication must be separate from browser sessions and scoped to the job;
-require replay protection and idempotency. This route must not accept arbitrary
-repository IDs, remote URLs, tokens or shell commands. Validate file count/size/path
-limits, reject traversal, symlinks, workflows and sensitive files, and store a reviewable diff.
+In an n8n HTTP Request node:
 
-A future `POST /jobs/{job_id}/approve` accepts `{proposal_id, expected_base_sha}` from
-the job owner with CSRF protection. Recheck current user and installation access plus
-write permission, verify unchanged base SHA, and require explicit review. Only then mint
-a narrowly scoped write token, create a server-named `accesspilot/<job-id>` branch,
-commit approved changes, and open a **draft** PR. Never push to the default branch,
-force-push or accept arbitrary GitHub API operations. Store commit/PR IDs for idempotency.
-No GitHub writes or agent executions are performed by the current backend/tests.
+- Method: POST.
+- URL: `https://YOUR-TUNNEL.trycloudflare.com/service/jobs/{{$('Webhook').item.json.body.job_id}}/remediation`
+  (adjust the Webhook node name/input wrapper to your workflow).
+- Header: `Authorization: Bearer {{$('Webhook').item.json.body.source_service.credential}}`.
+- JSON body: build changes from the agent's proposed source text, using exact paths
+  returned by the pinned-tree service. Do not pass an entire unvalidated agent response.
+
+```json
+{
+  "changes": [{
+    "file_path": "src/App.tsx",
+    "updated_code": "export const App = () => <img src=\"hero.png\" alt=\"A garden\"/>;\n",
+    "issue_ids": ["image-alt"]
+  }],
+  "issue_ids": ["image-alt"],
+  "unresolved_issues": ["A manual keyboard check remains"]
+}
+```
+
+The list must contain 1–10 changed files. Per-file/root issue_ids are optional lists
+of at most 50 short IDs. unresolved_issues is optional, at most 20 strings of 500
+characters. Unknown fields—including repository, installation, branch, base SHA or
+GitHub token overrides—are rejected. Limits: **24 KiB combined UTF-8 source** and the
+existing **32 KiB actual HTTP body** (JSON escaping/metadata counts toward the latter).
+Do not split a job into multiple commits: this route accepts one final changeset only.
+
+200 response (illustrative):
+
+```json
+{
+  "branch": "accesspilot/remediation-<job-uuid>",
+  "commit_sha": "40-character Git commit SHA",
+  "pr_url": "https://github.com/owner/repository/pull/123"
+}
+```
+
+All target metadata comes from the server-side job. Only live dispatching/submitted
+jobs with an unexpired credential and authenticated owner session are accepted.
+The route reuses source authorization, checks current user push permission, verifies
+this app installation grants **Contents:write and Pull requests:write**, and mints a
+fresh token restricted to that one repository and those permissions. Ordinary source
+reads continue to mint Contents:read tokens. If you changed GitHub App permissions,
+the installation owner must approve them before this route can write.
+
+Every file must already exist as a regular UTF-8 blob in the job's verified pinned
+tree. Reads verify blob hashes; symlinks, submodules, new/deleted paths, duplicates
+(including case collisions), binary/control characters, unchanged/blank files and
+protected content are rejected. Write access is narrower than reads: existing frontend
+HTML/CSS/JS/TS/JSX/TSX/Vue/Svelte/Astro sources only. Dotfiles, JSON/manifests/lockfiles,
+config-named files, declarations, auth/security/API/infra/script directories, middleware
+and service-worker files are excluded. Known job/server credentials and PEM/GitHub
+credential patterns are rejected in proposed code; this is not comprehensive secret
+or correctness detection. Human review of the resulting diff remains essential.
+
+The server checks that the current default-branch name and tip still match the job,
+checks the pinned commit's tree, creates a unique `accesspilot/remediation-<job-uuid>`
+branch **from that pinned commit**, creates all files through one Git tree and **one
+commit with the pinned commit as its only parent**, then fast-forwards only that
+new branch (`force:false`). It verifies the resulting branch SHA and creates a
+**draft** PR targeting the job's original default branch. No default-branch writes,
+force pushes, arbitrary GitHub operations or PR-body text generated by an agent are
+accepted. PR title/body/commit message are server templates with IDs/counts only.
+Issue text, source code, website URLs and credentials are never inserted into PR text.
+
+Retries are keyed by job_id and a canonical request hash under a per-job lock in the
+existing job record. Concurrent identical calls share one result; a different changeset
+for the same job returns 409. Confirmed tree/commit/ref steps are reused. A lost ref
+update response can be reconciled against the expected SHA; a lost PR response can
+be recovered only from a matching existing draft PR with the expected head/repo/base.
+Pre-existing branches are never adopted, and altered branch tips fail closed.
+
+**Limits of the prototype:** GitHub's multiple API calls are not a transaction. A
+failed request can leave a job branch or unreferenced Git objects; there is no rollback.
+An ambiguous tree/commit creation is **not retried**, preventing duplicate commits.
+Ambiguous branch/PR creation without a safely verifiable result returns 409 and needs
+manual reconciliation or abandonment of that job; do not clear state and blindly retry.
+Idempotency is only for the live single-process job lifetime. Restart/expiry invalidates
+the job and credential; no database, extra workers or multi-commit mode is introduced.
+GitHub has no transaction/CAS spanning the default ref and PR creation: fresh-base
+checks run before visible branch changes and PR creation, but cannot lock the default
+branch against another actor between API calls. Strict cross-ref atomicity is a
+platform limitation, not something this endpoint claims to provide.
+
+Errors: 401 missing/expired authentication, 403 unauthorized user/installation or
+missing permissions, 409 stale/mismatched SHA, conflicting retry, changed branch or
+ambiguous outcome; 413 excessive size/incomplete tree; 422 invalid source/paths/schema;
+502 sanitized GitHub failure. Use a fresh audit when the pinned default branch is
+stale. Source endpoints, OAuth, scanning, browser CSRF and tunnel documentation/debug/
+proxy protections remain unchanged. Permit this exact POST route at your HTTPS gateway;
+a Quick Tunnel hostname alone supplies no authentication.
 
 ## Validation boundaries
 

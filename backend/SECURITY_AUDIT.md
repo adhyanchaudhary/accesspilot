@@ -65,7 +65,7 @@ health and OAuth entry points remain publicly reachable.
   Untrusted pages can consume memory or exploit browser bugs; a worker container/OS
   sandbox with memory limits and a network firewall is recommended before broader use.
 - Remote user/installation revocation cannot atomically interrupt an already in-flight
-  GitHub read; fresh checks run on each request. There are no GitHub write endpoints.
+  GitHub read; fresh checks run on each request. The job-scoped draft-remediation write route is described in the follow-up below.
 - Runtime settings matter: use the launcher, keep debug/request tracing off in other
   tools, and do not configure a static server over the checkout. A future public
   browser deployment needs HTTPS-only cookies, updated OAuth settings, persistent
@@ -112,3 +112,30 @@ Validation: **160 passed, 2 skipped**. The regression includes real parent/child
 processes and controlled user-site packages. No live Windows Chromium success is claimed.
 The historical missing module cannot be recovered from old diagnostics that omitted
 its name; a fresh failure now identifies a known scanner dependency precisely.
+
+## Job-scoped draft remediation follow-up
+
+POST /service/jobs/{job_id}/remediation shares the exact worker auth and live owner/
+repository checks used by source reads. It additionally requires user push permission,
+verified installation Contents/Pull requests write grants and a single-repository
+write token. Targets, branch names and base commits come only from the server job.
+Only bounded, existing frontend source paths in the verified pinned tree are writable;
+config/protected/binary paths, no-op files, secrets and request overrides are rejected.
+
+One tree and one commit feed a unique job branch using force:false; only a draft PR
+is created. Titles/bodies contain server-controlled IDs/counts, not agent text or
+credentials. Same-job retries are locked and fingerprinted; ambiguous Git object
+creation fails closed. Lost PR/ref replies are reconciled only against expected remote
+objects. Tests mock all GitHub writes; no real branch/commit/PR creation was performed.
+
+The existing job credential now conveys bounded write access to authorized push users;
+n8n must protect it accordingly. State is in memory, and failures may leave branches
+or unreferenced objects. There is no rollback or distributed exactly-once guarantee.
+GitHub cannot atomically lock the default ref across all calls: base checks detect
+staleness at each visible-write boundary but do not eliminate a concurrent-ref race.
+
+Remediation validation result: **199 passed, 2 native-Windows tests skipped** for the
+full backend suite. New mocked checks cover success, multiple-file single commits,
+permissions, body/path/job/repo mismatches, binary source, stale/default/ref conflicts,
+concurrent retries, ambiguous responses and known credential rejection. No live GitHub
+writes were attempted.
