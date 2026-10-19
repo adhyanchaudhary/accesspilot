@@ -4,6 +4,7 @@ import ctypes
 import os
 import stat
 import subprocess
+import site
 import sys
 from pathlib import Path
 
@@ -108,6 +109,13 @@ def install_child_limits():
 def scanner_environment(work):
     env = {'PATH': os.defpath, 'HOME': work, 'TMPDIR': work, 'XDG_CACHE_HOME': work,
            'PYTHONUTF8': '1', 'LANG': 'C.UTF-8'}
+    # HOME/APPDATA isolation otherwise changes Python's user-site directory, even
+    # with the same sys.executable. Preserve installed packages, not browser profiles
+    # or arbitrary inherited PYTHONPATH/PYTHONHOME settings.
+    if site.ENABLE_USER_SITE:
+        env['PYTHONUSERBASE'] = site.getuserbase()
+    else:
+        env['PYTHONNOUSERSITE'] = '1'
     browser_path = os.getenv('PLAYWRIGHT_BROWSERS_PATH')
     if is_windows():
         root = os.getenv('SystemRoot') or os.getenv('SYSTEMROOT')

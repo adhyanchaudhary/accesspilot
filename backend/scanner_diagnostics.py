@@ -16,6 +16,18 @@ REASONS = {'running', 'ok', 'dependency_missing', 'dependency_load_failed', 'bro
 EXCEPTIONS = {'Error', 'TimeoutError', 'OSError', 'FileNotFoundError', 'ModuleNotFoundError',
               'ImportError', 'PermissionError', 'ValueError', 'TypeError', 'RuntimeError',
               'TargetClosedError', 'NotImplementedError', 'JSONDecodeError', 'PlatformError'}
+DEPENDENCY_ROOTS = {'playwright', 'axe_playwright_python', 'greenlet', 'pyee',
+                    'typing_extensions', 'httpx', '_winapi', '_overlapped', 'msvcrt'}
+
+
+def dependency_name(value):
+    if (isinstance(value, str) and len(value) <= 128
+            and re.fullmatch(r'[A-Za-z_][A-Za-z_0-9]*(?:\.[A-Za-z_][A-Za-z_0-9]*)*', value)
+            and value.split('.')[0] in DEPENDENCY_ROOTS):
+        return value
+    return None
+
+
 API_ERRORS = {'dependency_missing': 'scanner_dependency_missing', 'browser_missing': 'scanner_browser_missing',
               'sandbox_unavailable': 'scanner_sandbox_unavailable', 'navigation_timeout': 'scan_timed_out',
               'proxy_connection_failed': 'scanner_proxy_failed', 'dns_failed': 'scanner_dns_failed',
@@ -63,6 +75,9 @@ def record(stage, reason, error=None, return_code=None):
               'platform': sys.platform if sys.platform in ('win32', 'linux', 'darwin') else 'other',
               'python': f'{sys.version_info.major}.{sys.version_info.minor}'}
     if error is not None:
+        missing = dependency_name(getattr(error, 'name', None)) if isinstance(error, ModuleNotFoundError) else None
+        if missing:
+            result['missing_module'] = missing
         name = type(error).__name__
         result['exception'] = name if name in EXCEPTIONS else 'Exception'
         for field in ('errno', 'winerror'):
@@ -97,6 +112,9 @@ def validate(data):
         result['exception'] = data['exception']
     if isinstance(data.get('platform'), str) and data['platform'] in ('win32', 'linux', 'darwin', 'other'):
         result['platform'] = data['platform']
+    missing = dependency_name(data.get('missing_module'))
+    if missing:
+        result['missing_module'] = missing
     counts = data.get('proxy_failures')
     if isinstance(counts, dict):
         result['proxy_failures'] = {name: count for name, count in counts.items()

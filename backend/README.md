@@ -242,6 +242,47 @@ This implementation was tested on Linux; the Windows-native tests and live Windo
 Chromium launch were **not executed here**. Existing Chromium restrictions, certificate
 verification, public-only proxy, report normalization and tunnel hardening are unchanged.
 
+### Windows user-site dependency visibility
+
+The launcher uses **sys.executable**, not a PATH lookup for `python`: if FastAPI runs
+under `C:\Python313\python.exe`, that is also the scanner interpreter. Previously,
+however, the child did **not** necessarily have the same import paths. Redirecting
+APPDATA/USERPROFILE/HOME to the private browser workspace changed Python's default
+user base and hid packages installed under the real profile's
+`AppData\Roaming\Python\Python313\site-packages`. `pip check` and successful imports
+in the parent do not check that changed child environment. `httpx` is not a scanner
+child dependency.
+
+The fixed launcher captures the parent's `site.getuserbase()` as **PYTHONUSERBASE**
+when user-site imports are enabled, before isolating the browser's profile. If the
+parent disables user-site imports (for example a normal virtual environment or `-s`),
+PYTHONNOUSERSITE=1 preserves that restriction. It still excludes inherited PYTHONPATH,
+PYTHONHOME and application credentials; it does not copy the parent's arbitrary
+sys.path or restore real APPDATA/USERPROFILE for Chromium. Global/venv packages keep
+the same interpreter-managed paths, and supported per-user packages remain available.
+
+The scanner's direct imports are `playwright.sync_api` and
+`axe_playwright_python.sync_playwright`; Playwright also imports dependencies such as
+`pyee` and `greenlet`. Checking just `import playwright` or
+`import axe_playwright_python` need not exercise those imports. A safe parent check is:
+
+```powershell
+C:\Python313\python.exe -c "from playwright.sync_api import sync_playwright; from axe_playwright_python.sync_playwright import Axe; print('scanner imports OK')"
+```
+
+Dependency diagnostics now retain the exact allowlisted **ModuleNotFoundError.name**,
+for example `"missing_module":"greenlet"`; they do not infer names from exception
+text or expose raw messages/paths. Supported names include scanner packages and their
+known transitive modules. Unknown names are omitted rather than logging arbitrary
+strings. Previous diagnostics discarded this attribute, so the module that failed on
+a past Windows run cannot be identified from `ModuleNotFoundError` alone. If another
+failure occurs after restart, a fresh diagnostic will distinguish its missing module.
+
+Validation: **160 passed, 2 native Windows tests skipped**. A real Python subprocess
+regression verifies the same interpreter, reproduces hidden user-site packages, and
+verifies visibility with the fix while profile isolation remains active. This does
+not constitute a successful live Windows Chromium scan; that remains unverified.
+
 ### Diagnosing `scanner_failed` safely
 
 `example.com` is a valid public smoke-test target. The URL does not have to match

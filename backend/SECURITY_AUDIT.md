@@ -98,3 +98,17 @@ Validation: **149 passed, 2 skipped**. Real subprocess diagnostics were verified
 Linux, reporting a missing Playwright browser; the system browser's sandbox startup
 also failed. No real Chromium scan succeeded and the user's exact Windows failure
 remains unconfirmed. A fresh Windows diagnostic is required to establish that cause.
+
+## User-site import visibility correction
+
+Profile isolation previously changed Python's user-site location in the child despite
+using the parent's exact sys.executable. The runner now preserves the trusted parent
+user base explicitly with PYTHONUSERBASE when enabled, or preserves user-site disabling
+with PYTHONNOUSERSITE. APPDATA/USERPROFILE/HOME remain isolated; arbitrary PYTHONPATH/
+PYTHONHOME and credentials remain excluded. Diagnostics retain only allowlisted
+ModuleNotFoundError.name values, never raw messages. GitHub and n8n are unchanged.
+
+Validation: **160 passed, 2 skipped**. The regression includes real parent/child Python
+processes and controlled user-site packages. No live Windows Chromium success is claimed.
+The historical missing module cannot be recovered from old diagnostics that omitted
+its name; a fresh failure now identifies a known scanner dependency precisely.
