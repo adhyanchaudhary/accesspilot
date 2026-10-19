@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120" role="img" aria-labelledby="title">
+  <title id="title">Verify the results</title>
+  <defs>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#63e2c2"/>
+      <stop offset="1" stop-color="#0c9c7b"/>
+    </linearGradient>
+    <filter id="s" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0c4a3d" flood-opacity=".17"/>
+    </filter>
+  </defs>
+  <style>.t{font-family:'Segoe UI',Arial,sans-serif}</style>
+  <circle cx="80" cy="60" r="46" fill="#def7ef"/>
+  <g filter="url(#s)">
+    <path d="M80 20l31 11v22c0 19-13 31-31 38-18-7-31-19-31-38V31z" fill="url(#green)"/>
+  </g>
+  <path d="M62 58l10 10 20-22" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="107" y="24" width="35" height="20" rx="10" fill="#fff"/>
+  <path d="M115 34l3 3 6-7" fill="none" stroke="#0ea47f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="126" y="37" class="t" font-size="5.6" font-weight="700" fill="#0a1f44">PASS</text>
+  <rect x="16" y="78" width="34" height="18" rx="9" fill="#fff"/>
+  <circle cx="25" cy="87" r="3" fill="#18b393"/>
+  <text x="32" y="89.5" class="t" font-size="5" font-weight="600" fill="#40597d">AA</text>
+</svg>

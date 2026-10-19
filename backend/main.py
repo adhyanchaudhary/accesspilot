@@ -112,6 +112,21 @@ def create_app(settings=None, transport=None, scanner=None):
         response.headers['Referrer-Policy'] = 'no-referrer'
         return response
 
+    def remediation_view(job):
+        # Only the public result fields; fingerprints, pending steps and commit
+        # planning state stay server-side.
+        state = job.get('remediation')
+        if not state:
+            return None
+        result = state.get('result')
+        if result:
+            return {'status': 'completed', 'branch': result.get('branch'),
+                    'commit_sha': result.get('commit_sha'), 'pr_url': result.get('pr_url')}
+        view = {'status': 'in_progress', 'branch': state.get('branch')}
+        if state.get('commit_sha'):
+            view['commit_sha'] = state['commit_sha']
+        return view
+
     def cookie(response, name, value, max_age):
         response.set_cookie(name, value, max_age=max_age, httponly=True,
                             secure=settings.cookie_secure, samesite='lax', path='/')
@@ -215,8 +230,8 @@ def create_app(settings=None, transport=None, scanner=None):
         job = app.state.jobs.get(job_id)
         if not job or job['owner_user_id'] != s['user']['id']:
             raise HTTPException(404, 'Audit job not found')
-        return {'job_id': job['id'], 'status': job['status'], 'error': job['error'],
-                'summary': job.get('summary')}
+        return {'job_id': job['id'], 'status': job['status'], 'error': job.get('error'),
+                'summary': job.get('summary'), 'remediation': remediation_view(job)}
 
     app.add_middleware(RequestBoundary, tunnel_mode=settings.tunnel_mode)
     return app

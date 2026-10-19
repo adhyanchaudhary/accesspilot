@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="260" viewBox="0 0 440 260" role="img" aria-labelledby="title desc">
+  <title id="title">Smarter fix suggestions</title>
+  <desc id="desc">A code editor with an accessibility issue highlighted and an AI panel suggesting an approved fix.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f0ff"/>
+      <stop offset="1" stop-color="#fbfaff"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#6d3fe0"/>
+    </linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1.4" cy="1.4" r="1.4" fill="#d8ccf8" opacity=".7"/>
+    </pattern>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#2a1c57" flood-opacity=".2"/>
+    </filter>
+    <filter id="chip" x="-40%" y="-40%" width="180%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#2a1c57" flood-opacity=".16"/>
+    </filter>
+  </defs>
+  <style>.t{font-family:'Segoe UI',Arial,sans-serif}.m{font-family:Consolas,'Courier New',monospace}</style>
+
+  <rect x="0" y="0" width="440" height="260" rx="22" fill="url(#bg)"/>
+  <rect x="0" y="0" width="440" height="260" rx="22" fill="url(#dots)" opacity=".75"/>
+  <circle cx="26" cy="24" r="72" fill="#e6dcff" opacity=".8"/>
+  <circle cx="428" cy="246" r="66" fill="#e9e0ff" opacity=".8"/>
+
+  <g filter="url(#shadow)">
+    <rect x="40" y="42" width="292" height="178" rx="16" fill="#161c30"/>
+  </g>
+  <rect x="40" y="42" width="292" height="28" rx="16" fill="#1d243b"/>
+  <rect x="40" y="56" width="292" height="14" fill="#1d243b"/>
+  <circle cx="58" cy="56" r="3.4" fill="#ff7f7f"/>
+  <circle cx="69" cy="56" r="3.4" fill="#ffcd5c"/>
+  <circle cx="80" cy="56" r="3.4" fill="#46d1a5"/>
+  <rect x="104" y="48" width="70" height="17" rx="5" fill="#2a3352"/>
+  <text x="139" y="59.5" class="m" font-size="7.5" fill="#b8c6e6" text-anchor="middle">Hero.jsx</text>
+  <circle cx="315" cy="56" r="3" fill="#4a5578"/>
+
+  <g class="m" font-size="8">
+    <text x="52" y="91" fill="#414d70">1</text>
+    <text x="52" y="107" fill="#414d70">2</text>
+    <text x="52" y="123" fill="#414d70">3</text>
+    <text x="52" y="139" fill="#414d70">4</text>
+    <text x="52" y="155" fill="#414d70">5</text>
+    <text x="52" y="171" fill="#414d70">6</text>
+    <text x="52" y="187" fill="#414d70">7</text>
+    <text x="52" y="203" fill="#414d70">8</text>
+
+    <text x="68" y="91" fill="#8fb0ff">&lt;section</text>
+    <text x="117" y="91" fill="#f2c46d">class=</text>
+    <text x="148" y="91" fill="#9ce0c7">"hero"</text>
+    <text x="184" y="91" fill="#8fb0ff">&gt;</text>
+
+    <text x="76" y="107" fill="#8fb0ff">&lt;h1&gt;</text>
+    <text x="108" y="107" fill="#e7edff">Access for all</text>
+    <text x="186" y="107" fill="#8fb0ff">&lt;/h1&gt;</text>
+
+    <text x="76" y="123" fill="#8fb0ff">&lt;button</text>
+    <text x="125" y="123" fill="#f2c46d">class=</text>
+    <text x="156" y="123" fill="#9ce0c7">"cta"</text>
+    <text x="184" y="123" fill="#8fb0ff">&gt;</text>
+
+    <text x="86" y="139" fill="#ff9c9c">Start scan</text>
+    <text x="76" y="155" fill="#8fb0ff">&lt;/button&gt;</text>
+    <text x="68" y="171" fill="#8fb0ff">&lt;/section&gt;</text>
+  </g>
+
+  <rect x="82" y="128" width="118" height="15" rx="3.5" fill="#3a2030" opacity=".9"/>
+  <rect x="82" y="128" width="3" height="15" rx="1.5" fill="#ff7f7f"/>
+  <path d="M260 144l9 9-1.2-8 7-1.2-14.8-11.8z" fill="#fff" stroke="#6d3fe0" stroke-width="1.2" stroke-linejoin="round"/>
+  <circle cx="268" cy="138" r="14" fill="none" stroke="#a78bfa" stroke-width="1.4" opacity=".5"/>
+
+  <g>
+    <rect x="76" y="182" width="222" height="22" rx="6" fill="#202a45"/>
+    <circle cx="88" cy="193" r="4.5" fill="#3a2030"/>
+    <path d="M86 193h4M88 191v4" stroke="#ff8f8f" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="99" y="196" class="m" font-size="7.5" fill="#ffb1b1">Contrast 2.9:1 · fails WCAG AA</text>
+  </g>
+
+  <g filter="url(#chip)">
+    <rect x="300" y="70" width="128" height="148" rx="14" fill="#fff"/>
+    <path d="M314 84l1.5 4.2 4.2 1.5-4.2 1.5-1.5 4.2-1.5-4.2-4.2-1.5 4.2-1.5z" fill="url(#violet)"/>
+    <text x="326" y="91" class="t" font-size="9.5" font-weight="700" fill="#3b2a68">AI suggestion</text>
+    <text x="312" y="108" class="t" font-size="7.5" fill="#7b6d9c">Improve button contrast</text>
+    <rect x="312" y="116" width="104" height="24" rx="6" fill="#f3efff"/>
+    <text x="320" y="124.5" class="m" font-size="6.5" fill="#6d5a9e">color:</text>
+    <text x="320" y="134" class="m" font-size="6.5" fill="#6d3fe0">#1d4ed8</text>
+    <rect x="312" y="145" width="104" height="24" rx="6" fill="#e9f9f3"/>
+    <path d="M318 154l2.4 2.4 4-4.6" fill="none" stroke="#0e9d7d" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="328" y="159.5" class="t" font-size="6.8" font-weight="600" fill="#0b8a6f">aria-label added</text>
+    <rect x="312" y="177" width="104" height="26" rx="13" fill="url(#violet)"/>
+    <text x="364" y="194" class="t" font-size="8.5" font-weight="700" fill="#fff" text-anchor="middle">Apply fix</text>
+  </g>
+
+  <g filter="url(#chip)">
+    <rect x="8" y="202" width="130" height="42" rx="21" fill="#fff"/>
+    <circle cx="31" cy="223" r="13" fill="#fff0ef"/>
+    <path d="M31 216.5l6 10.5h-12z" fill="none" stroke="#e05555" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M31 220v3.4" stroke="#e05555" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="31" cy="225.8" r=".9" fill="#e05555"/>
+    <text x="51" y="220" class="t" font-size="8.8" font-weight="700" fill="#0a1f44">Issue detected</text>
+    <text x="51" y="232" class="t" font-size="7.4" fill="#7b8dab">Contrast too low</text>
+  </g>
+
+  <g filter="url(#chip)">
+    <rect x="326" y="24" width="102" height="36" rx="18" fill="#fff"/>
+    <path d="M346 34l1.4 3.8 3.8 1.4-3.8 1.4-1.4 3.8-1.4-3.8-3.8-1.4 3.8-1.4z" fill="url(#violet)"/>
+    <text x="358" y="46" class="t" font-size="9" font-weight="700" fill="#0a1f44">AI assist</text>
+  </g>
+</svg>

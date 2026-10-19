@@ -346,3 +346,26 @@ def test_known_credential_cannot_be_written_to_source(remediation):
     body = copy.deepcopy(BODY)
     body['changes'][0]['updated_code'] = 'const token = "write-secret";'
     assert post(body).status_code == 422 and not github.writes()
+
+
+def test_audit_status_reports_safe_remediation_result(remediation):
+    _, job, github, post = remediation
+    before = post.client.get(f"/audits/{job['id']}")
+    assert before.status_code == 200 and before.json()['remediation'] is None
+    assert post().status_code == 200
+    response = post.client.get(f"/audits/{job['id']}")
+    assert response.status_code == 200
+    assert response.json()['remediation'] == {'status': 'completed', 'branch': github.branch,
+        'commit_sha': COMMIT, 'pr_url': 'https://github.com/alice/site/pull/1'}
+    assert 'fingerprint' not in response.text and 'pending' not in response.text
+
+
+def test_audit_status_does_not_expose_internal_remediation_state(remediation):
+    _, job, github, post = remediation
+    job['remediation'] = {'fingerprint': 'private-fingerprint', 'branch': github.branch,
+        'pending': 'pr', 'tree_sha': TREE, 'commit_sha': COMMIT}
+    response = post.client.get(f"/audits/{job['id']}")
+    assert response.status_code == 200
+    assert response.json()['remediation'] == {'status': 'in_progress',
+        'branch': github.branch, 'commit_sha': COMMIT}
+    assert 'private-fingerprint' not in response.text and 'pending' not in response.text

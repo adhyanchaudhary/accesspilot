@@ -80,7 +80,7 @@ CORS permits credentials only from FRONTEND_ORIGIN. Requests use
 | GET /github/install | Session | Redirect to app installation page |
 | GET /github/repositories | Session | `{ "repositories": [{"id": 7, "installation_id": 3, "full_name": "owner/site", "private": true, "default_branch": "main"}] }` |
 | POST /audits | Session + CSRF + Origin | 202 `{ "job_id": "UUID", "status": "queued" }` (or existing job status on deduplication) |
-| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary}` |
+| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary, remediation}`; remediation is `null`, `{status: "in_progress", branch, commit_sha?}`, or `{status: "completed", branch, commit_sha, pr_url}` |
 | POST /auth/logout | Session + CSRF + Origin | `{ "status": "logged_out" }` |
 
 Interactive OpenAPI documentation is at `/docs` in the local profile only; tunnel mode disables it. Errors use `{ "detail": ... }`:
@@ -362,8 +362,10 @@ request or in an unbounded thread/background-task pool.
 
 Job states: **queued → scanning → dispatching → submitted**, or **failed**. Poll
 GET /audits/{job_id} with the submitting user's session; another user receives 404.
-The response includes `error` and `summary` (violation/affected-element counts when
-available), never machine credentials, raw scanner logs or internal webhook details.
+The response includes `error`, `summary` (violation/affected-element counts when
+available) and an optional safe `remediation` view (branch/SHA/draft PR URL only),
+never machine credentials, raw scanner logs, fingerprints, pending write state or
+internal webhook details.
 `submitted` means n8n accepted the payload, not that agents finished or fixed code.
 Missing browser binaries/libraries/sandbox support produce `scanner_failed`; other
 safe codes include `scan_timed_out`, `invalid_report`, `authorization_expired`,

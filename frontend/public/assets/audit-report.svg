@@ -1,0 +1,155 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="520" viewBox="0 0 720 520" role="img" aria-labelledby="title desc">
+  <title id="title">AccessPilot accessibility report</title>
+  <desc id="desc">A report showing an accessibility score of 92, category scores, a resolved issues trend chart, and recent fixes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef5ff"/>
+      <stop offset="1" stop-color="#f8fbff"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5f9bff"/>
+      <stop offset="1" stop-color="#2463ea"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5fe0be"/>
+      <stop offset="1" stop-color="#0c9c7b"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3f8cff" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#3f8cff" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.5" fill="#c9dcf9" opacity=".65"/>
+    </pattern>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#173b72" flood-opacity=".15"/>
+    </filter>
+    <filter id="chip" x="-40%" y="-40%" width="180%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#173b72" flood-opacity=".14"/>
+    </filter>
+  </defs>
+  <style>.t{font-family:'Segoe UI',Arial,sans-serif}</style>
+
+  <rect x="0" y="0" width="720" height="520" rx="28" fill="url(#bg)"/>
+  <rect x="0" y="0" width="720" height="520" rx="28" fill="url(#dots)" opacity=".7"/>
+  <circle cx="700" cy="20" r="105" fill="#dcecff" opacity=".7"/>
+  <circle cx="10" cy="500" r="90" fill="#e2eeff" opacity=".8"/>
+
+  <g filter="url(#shadow)">
+    <rect x="40" y="30" width="640" height="460" rx="24" fill="#fff"/>
+  </g>
+
+  <text x="70" y="74" class="t" font-size="20" font-weight="800" fill="#0a1f44">Accessibility report</text>
+  <text x="70" y="94" class="t" font-size="10" fill="#7588a7">example.com · WCAG 2.2 AA · Updated 2 min ago</text>
+  <rect x="520" y="54" width="54" height="24" rx="12" fill="#f1f6ff"/>
+  <text x="547" y="69.5" class="t" font-size="8.5" font-weight="600" fill="#3a5a8a" text-anchor="middle">Export</text>
+  <rect x="582" y="54" width="68" height="24" rx="12" fill="#2463ea"/>
+  <text x="616" y="69.5" class="t" font-size="8.5" font-weight="700" fill="#fff" text-anchor="middle">Re-scan</text>
+
+  <g>
+    <rect x="70" y="116" width="280" height="140" rx="16" fill="#f8fbff" stroke="#e5eefb"/>
+    <circle cx="126" cy="186" r="41" fill="none" stroke="#e5eefb" stroke-width="9"/>
+    <circle cx="126" cy="186" r="41" fill="none" stroke="url(#green)" stroke-width="9" stroke-linecap="round"
+            stroke-dasharray="237 257.6" transform="rotate(-90 126 186)"/>
+    <text x="126" y="190" class="t" font-size="21" font-weight="800" fill="#0a1f44" text-anchor="middle">92</text>
+    <text x="126" y="203" class="t" font-size="7" font-weight="600" fill="#7b8dab" text-anchor="middle" letter-spacing=".5">SCORE</text>
+    <text x="184" y="158" class="t" font-size="10" font-weight="600" fill="#546a91">Accessibility score</text>
+    <text x="184" y="181" class="t" font-size="19" font-weight="800" fill="#0b8a6f">Excellent</text>
+    <text x="184" y="198" class="t" font-size="8.2" fill="#7b8dab">Up 14 points since last scan</text>
+    <rect x="184" y="210" width="140" height="7" rx="3.5" fill="#e7f5f0"/>
+    <rect x="184" y="210" width="129" height="7" rx="3.5" fill="url(#green)"/>
+    <text x="184" y="232" class="t" font-size="7.5" fill="#7b8dab">38 of 41 checks passed</text>
+  </g>
+
+  <g>
+    <rect x="366" y="116" width="284" height="140" rx="16" fill="#fff" stroke="#e5eefb"/>
+    <text x="384" y="140" class="t" font-size="10" font-weight="700" fill="#0a1f44">Categories</text>
+
+    <text x="384" y="162" class="t" font-size="7.6" fill="#546a91">Contrast</text>
+    <rect x="458" y="155" width="130" height="6" rx="3" fill="#eef3fa"/>
+    <rect x="458" y="155" width="127" height="6" rx="3" fill="url(#green)"/>
+    <text x="632" y="162" class="t" font-size="7.4" font-weight="700" fill="#40597d" text-anchor="end">98%</text>
+
+    <text x="384" y="183" class="t" font-size="7.6" fill="#546a91">Keyboard</text>
+    <rect x="458" y="176" width="130" height="6" rx="3" fill="#eef3fa"/>
+    <rect x="458" y="176" width="122" height="6" rx="3" fill="url(#blue)"/>
+    <text x="632" y="183" class="t" font-size="7.4" font-weight="700" fill="#40597d" text-anchor="end">94%</text>
+
+    <text x="384" y="204" class="t" font-size="7.6" fill="#546a91">ARIA</text>
+    <rect x="458" y="197" width="130" height="6" rx="3" fill="#eef3fa"/>
+    <rect x="458" y="197" width="114" height="6" rx="3" fill="#8b6ff0"/>
+    <text x="632" y="204" class="t" font-size="7.4" font-weight="700" fill="#40597d" text-anchor="end">88%</text>
+
+    <text x="384" y="225" class="t" font-size="7.6" fill="#546a91">Images</text>
+    <rect x="458" y="218" width="130" height="6" rx="3" fill="#eef3fa"/>
+    <rect x="458" y="218" width="117" height="6" rx="3" fill="#f5b53d"/>
+    <text x="632" y="225" class="t" font-size="7.4" font-weight="700" fill="#40597d" text-anchor="end">90%</text>
+
+    <text x="632" y="244" class="t" font-size="6.8" fill="#9aa9bf" text-anchor="end">WCAG 2.2 target · 90%</text>
+  </g>
+
+  <g>
+    <rect x="70" y="272" width="580" height="120" rx="16" fill="#fff" stroke="#e5eefb"/>
+    <text x="88" y="296" class="t" font-size="10" font-weight="700" fill="#0a1f44">Issues resolved over time</text>
+    <circle cx="510" cy="292" r="3.4" fill="#2463ea"/>
+    <text x="520" y="295" class="t" font-size="7.2" fill="#7b8dab">Resolved</text>
+    <circle cx="580" cy="292" r="3.4" fill="#f5b53d"/>
+    <text x="590" y="295" class="t" font-size="7.2" fill="#7b8dab">Remaining</text>
+
+    <g stroke="#eef3fa">
+      <path d="M88 318h536"/>
+      <path d="M88 342h536"/>
+      <path d="M88 366h536"/>
+    </g>
+
+    <path d="M100 356L190 344L280 348L370 328L460 322L550 304L620 294L620 370L100 370Z" fill="url(#area)"/>
+    <path d="M100 356L190 344L280 348L370 328L460 322L550 304L620 294" fill="none" stroke="url(#blue)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <g fill="#fff" stroke="#2463ea" stroke-width="2">
+      <circle cx="100" cy="356" r="3.4"/>
+      <circle cx="190" cy="344" r="3.4"/>
+      <circle cx="280" cy="348" r="3.4"/>
+      <circle cx="370" cy="328" r="3.4"/>
+      <circle cx="460" cy="322" r="3.4"/>
+      <circle cx="550" cy="304" r="3.4"/>
+      <circle cx="620" cy="294" r="3.4"/>
+    </g>
+
+    <g fill="#93a5bf" font-size="6.5" class="t" text-anchor="middle">
+      <text x="100" y="384">Mon</text>
+      <text x="190" y="384">Tue</text>
+      <text x="280" y="384">Wed</text>
+      <text x="370" y="384">Thu</text>
+      <text x="460" y="384">Fri</text>
+      <text x="550" y="384">Sat</text>
+      <text x="620" y="384">Sun</text>
+    </g>
+  </g>
+
+  <g>
+    <rect x="70" y="408" width="580" height="62" rx="14" fill="#f8fbff" stroke="#e8f0fb"/>
+    <text x="88" y="430" class="t" font-size="9" font-weight="700" fill="#0a1f44">Recent activity</text>
+
+    <rect x="88" y="438" width="156" height="22" rx="11" fill="#e9f9f3"/>
+    <circle cx="102" cy="449" r="5" fill="#0ea47f"/>
+    <path d="M99.5 449l1.8 1.8 3.5-4" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="113" y="452" class="t" font-size="7.6" font-weight="600" fill="#0b8a6f">Contrast fixed</text>
+
+    <rect x="253" y="438" width="156" height="22" rx="11" fill="#e9f9f3"/>
+    <circle cx="267" cy="449" r="5" fill="#0ea47f"/>
+    <path d="M264.5 449l1.8 1.8 3.5-4" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="278" y="452" class="t" font-size="7.6" font-weight="600" fill="#0b8a6f">Alt text added</text>
+
+    <rect x="418" y="438" width="156" height="22" rx="11" fill="#fff7e7"/>
+    <circle cx="432" cy="449" r="5" fill="#f5b53d"/>
+    <path d="M432 446.5v2.8m0 1.6v.3" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="443" y="452" class="t" font-size="7.6" font-weight="600" fill="#a9760b">Focus order in review</text>
+  </g>
+
+  <g filter="url(#chip)">
+    <rect x="502" y="464" width="196" height="46" rx="23" fill="#fff"/>
+    <circle cx="528" cy="487" r="13" fill="#0ea47f"/>
+    <path d="M522 487l4 4 7-8" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="548" y="483" class="t" font-size="9.5" font-weight="700" fill="#0a1f44">38 fixes verified</text>
+    <text x="548" y="496" class="t" font-size="7.6" fill="#7b8dab">Every change re-checked</text>
+  </g>
+</svg>

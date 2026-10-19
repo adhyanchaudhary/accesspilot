@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="120" viewBox="0 0 160 120" role="img" aria-labelledby="title">
+  <title id="title">Apply the approved code patch</title>
+  <defs>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5fe0be"/>
+      <stop offset="1" stop-color="#0c9c7b"/>
+    </linearGradient>
+    <filter id="s" x="-40%" y="-40%" width="180%" height="190%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0c4a3d" flood-opacity=".17"/>
+    </filter>
+  </defs>
+  <style>.m{font-family:Consolas,'Courier New',monospace}</style>
+  <circle cx="80" cy="60" r="46" fill="#dff6ef"/>
+  <g filter="url(#s)">
+    <rect x="22" y="26" width="104" height="66" rx="10" fill="#172033"/>
+  </g>
+  <rect x="22" y="26" width="104" height="20" rx="10" fill="#1f2a42"/>
+  <rect x="22" y="36" width="104" height="10" fill="#1f2a42"/>
+  <circle cx="32" cy="36" r="2.2" fill="#ff8585"/>
+  <circle cx="39" cy="36" r="2.2" fill="#ffcd5c"/>
+  <circle cx="46" cy="36" r="2.2" fill="#45d2a5"/>
+  <g class="m" font-size="5.6">
+    <text x="30" y="58" fill="#7ea6ff">&lt;button</text>
+    <text x="36" y="68" fill="#9ce0c7">aria-label</text>
+    <text x="36" y="78" fill="#e8eeff">Start scan</text>
+    <text x="30" y="88" fill="#7ea6ff">&lt;/button&gt;</text>
+  </g>
+  <rect x="28" y="72" width="38" height="9" rx="2" fill="#123f38"/>
+  <path d="M31 76.5l2 2 3.5-4" fill="none" stroke="#4ee0b5" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <g filter="url(#s)">
+    <circle cx="124" cy="88" r="17" fill="url(#green)"/>
+  </g>
+  <path d="M116 88l5 5 10-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M134 32l1.5 4.2 4.2 1.5-4.2 1.5-1.5 4.2-1.5-4.2-4.2-1.5 4.2-1.5z" fill="#3fc9a9"/>
+</svg>
