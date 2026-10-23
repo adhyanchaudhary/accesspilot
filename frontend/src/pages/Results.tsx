@@ -4,6 +4,7 @@ import {
   ExternalLink,
   FileSearch,
   Github,
+  GitPullRequest,
   Globe,
   History,
   RefreshCw,
@@ -11,6 +12,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Alert } from '../components/Alert'
+import { ChangesViewer } from '../components/ChangesViewer'
 import { Corners } from '../components/Corners'
 import { EmptyState } from '../components/EmptyState'
 import { Layout } from '../components/Layout'
@@ -217,6 +219,8 @@ export function Results() {
                 </div>
               )}
 
+              {job && <ChangesViewer key={job.job_id} job={job} />}
+
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="min-w-0 space-y-6 lg:col-span-2">
                   {job?.status === 'failed' && (
@@ -267,7 +271,11 @@ export function Results() {
                         Audit status
                       </h2>
                       <div className="mt-5">
-                        <ScanIndicator status={job.status} />
+                        {job.remediation?.status === 'completed' ? <div className="space-y-3 text-center">
+                          <GitPullRequest className="mx-auto h-10 w-10 text-emerald-600" aria-hidden="true" />
+                          <p className="font-semibold text-navy-900">Draft PR confirmed</p>
+                          <p className="text-xs leading-relaxed text-navy-500">Proposed changes are ready for human review. Nothing has been merged or verified by this preview.</p>
+                        </div> : <ScanIndicator status={job.status} />}
                       </div>
                     </div>
                   )}

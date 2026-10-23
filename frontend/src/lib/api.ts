@@ -1,5 +1,7 @@
 import type {
   AuditJob,
+  AuditChanges,
+  FileDiff,
   HealthResponse,
   RemediationResult,
   Repository,
@@ -114,6 +116,36 @@ function validRemediation(r: RemediationResult): boolean {
   return r.status !== 'completed' || Boolean(r.pr_url && r.commit_sha && r.branch)
 }
 
+const sha = (s: unknown) => typeof s === 'string' && /^[a-f0-9]{40}$/.test(s)
+function validFileDiff(file: FileDiff): boolean {
+  if (!file || typeof file.file_path !== 'string' || !file.file_path || file.file_path.length > 1024 ||
+      !Array.isArray(file.issue_ids) || file.issue_ids.length > 100 ||
+      !file.issue_ids.every(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(id)) ||
+      !Array.isArray(file.hunks)) return false
+  if (file.status === 'unavailable') return file.hunks.length === 0 && file.additions === null && file.deletions === null &&
+    ['preview_limit', 'protected_content'].includes(file.reason ?? '')
+  if (file.status !== 'available' || file.reason !== null || !sha(file.old_blob_sha) || !sha(file.new_blob_sha) ||
+      !count(file.additions) || !count(file.deletions) || !file.hunks.length || file.hunks.length > 2000) return false
+  let additions = 0, deletions = 0, rows = 0
+  for (const hunk of file.hunks) {
+    if (!hunk || !count(hunk.old_start) || !count(hunk.old_count) || !count(hunk.new_start) || !count(hunk.new_count) ||
+        !Array.isArray(hunk.lines) || !hunk.lines.length || hunk.lines.length > 2000) return false
+    let oldCount = 0, newCount = 0
+    for (const line of hunk.lines) {
+      if (!line || typeof line.text !== 'string' || /[\r\n]/.test(line.text) ||
+          !['lf','crlf','cr','none'].includes(line.ending) || ++rows > 2000) return false
+      const oldNumber = count(line.old_line) && Number(line.old_line) > 0
+      const newNumber = count(line.new_line) && Number(line.new_line) > 0
+      if (line.kind === 'add' && line.old_line === null && newNumber) { additions++; newCount++ }
+      else if (line.kind === 'delete' && oldNumber && line.new_line === null) { deletions++; oldCount++ }
+      else if (line.kind === 'context' && oldNumber && newNumber) { oldCount++; newCount++ }
+      else return false
+    }
+    if (oldCount !== hunk.old_count || newCount !== hunk.new_count) return false
+  }
+  return additions === file.additions && deletions === file.deletions
+}
+
 export const api = {
   /** Starts OAuth using a full browser navigation, never a background fetch. */
   loginUrl(): string {
@@ -189,6 +221,20 @@ export const api = {
       remediation: data.remediation ?? null,
       audit: data.audit ?? null,
     }
+  },
+
+  async getAuditChanges(jobId: string, signal?: AbortSignal): Promise<AuditChanges> {
+    const data = await request<AuditChanges>(`/audits/${encodeURIComponent(jobId)}/changes`, { signal })
+    if (data.job_id !== jobId || !['pending','completed','unavailable'].includes(data.status) ||
+        !Array.isArray(data.files) || data.files.length > 10 ||
+        (data.reason !== null && typeof data.reason !== 'string')) malformed()
+    if (data.status === 'completed') {
+      if (!sha(data.base_sha) || !sha(data.commit_sha) || typeof data.branch !== 'string' || !data.branch ||
+          data.reason !== null || !data.files.length || !data.files.every(validFileDiff)) malformed()
+      const paths = data.files.filter(file => file.status === 'available').map(file => file.file_path.toLowerCase())
+      if (new Set(paths).size !== paths.length) malformed()
+    } else if (data.files.length) malformed()
+    return data
   },
 
   async logout(csrfToken: string): Promise<void> {

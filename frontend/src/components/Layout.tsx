@@ -1,13 +1,12 @@
 import type { ReactNode } from 'react'
-import { Background } from './Background'
+import './Workspace.css'
 import { useAuth } from '../context/AuthContext'
 import { Navbar } from './Navbar'
 
 export function Layout({ children }: { children: ReactNode }) {
   const { error } = useAuth()
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <Background />
+    <div className="workspace relative flex min-h-screen flex-col">
       <Navbar />
       {error && <p role="alert" className="mx-auto max-w-6xl p-4 text-sm text-red-700">{error}</p>}
       <main className="flex-1">{children}</main>

@@ -13,6 +13,7 @@ This is a local-development prototype. Automated checks use mocked integrations;
 - Asynchronous Playwright + axe-core scanning with timeouts, concurrency limits, and public-network restrictions.
 - Actual accessibility findings: violation IDs, impact, descriptions, selectors, and affected-element evidence.
 - Separate scan and remediation states, with confirmed draft PR links on the results page.
+- Dark code-review workspace with owner-authorized, pinned-commit diffs, line numbers, and green/red additions and deletions.
 - Job-scoped source retrieval and bounded remediation writes for n8n.
 - One remediation branch and commit per audit; no direct writes to the default branch.
 - Responsive frontend with interactive feature cards and pause/spin controls.
@@ -149,6 +150,7 @@ See [LOCAL_E2E_TEST.md](LOCAL_E2E_TEST.md) for the request contracts, n8n config
 | `GET /github/repositories` | List authorized repositories |
 | `POST /audits` | Queue an authorized accessibility audit |
 | `GET /audits/{job_id}` | Owner-only scan findings and remediation status |
+| `GET /audits/{job_id}/changes` | Owner-only confirmed code diff; rechecks live repository access |
 | `POST /auth/logout` | End the current browser session |
 | `GET /service/jobs/{job_id}/tree` | Machine-authenticated pinned source tree |
 | `GET /service/jobs/{job_id}/source` | Machine-authenticated source-file retrieval |
@@ -165,11 +167,14 @@ npm --prefix frontend run typecheck
 npm --prefix frontend run build
 ```
 
-Last local validation: **204 backend tests passed**, with **2 native-Windows tests skipped on Linux**; **25 frontend tests passed**, and the production build and TypeScript checks passed. Backend health, strict CORS, authentication rejection, and disabled documentation were checked in a local process. A Chromium journey with mocked APIs was checked at desktop and mobile widths.
+Last local validation: **227 backend tests passed**, with **2 native-Windows tests skipped on Linux**; **50 frontend tests passed**, and the production build and TypeScript checks passed. Backend health, strict CORS, authentication rejection, and disabled documentation were checked in a local process. A Chromium journey with mocked APIs was checked at desktop and mobile widths.
 
 Automated tests never create real GitHub commits or PRs. Live Windows Chromium scanning, OAuth consent, Cloudflare routing, and your n8n/Gemini execution still require manual verification.
 
 ## Prototype limitations
+
+Code previews are captured for **new** remediation jobs only. Restart both services
+after updating, then submit a fresh audit. No n8n workflow changes are needed.
 
 - Sessions and jobs live in memory. Restarting the backend loses them; jobs expire within one hour or earlier with their authorization. No persistent audit history is provided.
 - `submitted` means n8n accepted the audit, **not** that remediation completed. Only a confirmed backend result produces a PR link.

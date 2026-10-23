@@ -227,6 +227,44 @@ def create_app(settings=None, transport=None, scanner=None):
             request.cookies['accesspilot_session'], s, key)
         return {'job_id': job['id'], 'status': job['status']}
 
+    @app.get('/audits/{job_id}/changes')
+    async def audit_changes(job_id: str, request: Request, s=Depends(session)):
+        job = app.state.jobs.get(job_id)
+        if not job or job.get('id') != job_id or job['owner_user_id'] != s['user']['id']:
+            raise HTTPException(404, 'Audit job not found')
+        owner = app.state.sessions.get(job['owner_session'])
+        if not owner or owner['user']['id'] != job['owner_user_id']:
+            raise HTTPException(403, 'Job authorization expired')
+        github = app.state.github
+        user = await github.request('GET', '/user', s['token'])
+        if user.get('id') != job['owner_user_id']:
+            raise HTTPException(403, 'Job owner identity does not match')
+        repo, _ = await github.repository_access(s['token'], job['installation_id'], job['repository_id'])
+        recorded = job['repository']
+        if (repo.get('id') != job['repository_id'] or repo.get('installation_id') != job['installation_id']
+                or recorded.get('id') != job['repository_id']
+                or recorded.get('installation_id') != job['installation_id']
+                or repo.get('full_name') != recorded.get('full_name')):
+            raise HTTPException(403, 'Job repository authorization does not match')
+        # Logout/expiry may happen while the live GitHub checks are in flight.
+        if (app.state.jobs.get(job_id) is not job
+                or app.state.sessions.get(job['owner_session']) is not owner
+                or app.state.sessions.get(request.cookies.get('accesspilot_session', '')) is not s):
+            raise HTTPException(403, 'Job authorization expired')
+        state = job.get('remediation') or {}
+        result = state.get('result')
+        if not result:
+            failed = job.get('remediation_error') or job.get('status') == 'failed'
+            return {'job_id': job_id, 'status': 'unavailable' if failed else 'pending',
+                    'reason': 'remediation_failed' if failed else None, 'files': []}
+        files = state.get('changes_preview')
+        if files is None:
+            return {'job_id': job_id, 'status': 'unavailable',
+                    'reason': 'preview_not_recorded', 'files': []}
+        return {'job_id': job_id, 'status': 'completed', 'reason': None,
+                'base_sha': job['base_sha'], 'commit_sha': result['commit_sha'],
+                'branch': result['branch'], 'files': files}
+
     @app.get('/audits/{job_id}')
     async def audit_status(job_id: str, s=Depends(session)):
         job = app.state.jobs.get(job_id)

@@ -146,7 +146,7 @@ export function Dashboard() {
   return (
     <Layout>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="relative mb-8 overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-navy-50 p-6 shadow-card sm:p-8">
+        <div className="workspace-intro relative mb-8 overflow-hidden rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50 via-white to-navy-50 p-6 shadow-card sm:p-8">
           <div className="pointer-events-none absolute inset-0 bg-grid-fade opacity-70" aria-hidden="true" />
           <div className="relative">
             <span className="eyebrow">

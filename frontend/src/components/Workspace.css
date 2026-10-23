@@ -1,0 +1,39 @@
+/* Scoped to authenticated pages; the public landing and connection panel keep their design. */
+.workspace { min-height: 100vh; color-scheme: dark; color: #d8e0ed; background: radial-gradient(ellipse at 15% 0%, #172235, transparent 45%), #0c111b; }
+.workspace > header, .workspace > footer { background: #111925ee; border-color: #283244; }
+.workspace main { min-width: 0; }
+.workspace .card { border-color: #2a3547; background: #151e2b; box-shadow: 0 8px 32px rgb(0 0 0 / 10%); }
+.workspace .input, .workspace [role="group"] button:not([aria-pressed="true"]) { color: #d9e3f1; background-color: #111a28; border-color: #35415a; }
+.workspace .input::placeholder { color: #7e8fa9; }
+.workspace .btn-secondary { color: #d0ddee; border-color: #35415a; background: #1b283c; }
+.workspace .btn-secondary:hover { background: #243650; color: #fff; }
+.workspace .btn-ghost { color: #a7bada; }
+.workspace .btn-ghost:hover { color: #fff; background: #243650; }
+.workspace :is(.text-navy-950, .text-navy-900, .text-navy-800, .text-navy-700) { color: #e3eaf5; }
+.workspace :is(.text-navy-600, .text-navy-500) { color: #a5b5cf; }
+.workspace :is(.text-navy-400, .text-navy-300) { color: #8a9dbb; }
+.workspace :is(.text-brand-700, .text-brand-600, .text-brand-500) { color: #95b9ff; }
+.workspace :is(.border-navy-100, .border-navy-200, .border-brand-100, .border-brand-200) { border-color: #2e3d54; }
+.workspace :is(.bg-white, .bg-navy-50, .bg-navy-100, .bg-brand-50) { background-color: #1b2a40; }
+.workspace [class~="bg-white/70"], .workspace [class~="bg-white/80"] { background-color: #151f30; }
+.workspace [class~="divide-navy-50"] > :not([hidden]) ~ :not([hidden]), .workspace [class~="divide-navy-100"] > :not([hidden]) ~ :not([hidden]) { border-color: #2a364a; }
+.workspace .eyebrow { color: #9cbcff; background: #172b48; border-color: #314b73; }
+.workspace :is(.bg-red-50, .bg-red-100) { background: #38202b; }
+.workspace :is(.text-red-600, .text-red-700, .text-red-800) { color: #ffadb6; }
+.workspace :is(.bg-amber-50, .bg-amber-100) { background: #332a1f; }
+.workspace :is(.text-amber-600, .text-amber-700, .text-amber-800) { color: #f5d08a; }
+.workspace :is(.bg-emerald-50, .bg-emerald-100) { background: #16342e; }
+.workspace :is(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #82e2bd; }
+.workspace [class~="bg-emerald-50/60"] { background: #18322e; }
+.workspace :is(.ring-navy-200, .ring-brand-200) { --tw-ring-color: #384d6c; }
+.workspace :is(.ring-emerald-200, .ring-amber-200, .ring-red-200) { --tw-ring-color: #455268; }
+.workspace :focus-visible { --tw-ring-offset-color: #111925; }
+.workspace .skeleton { background: #263650; }
+.workspace .workspace-intro { background: linear-gradient(120deg, #192a46, #152034); }
+.workspace .workspace-intro::before { opacity: .25; }
+.workspace #repository-options { border-color: #35415a; background: #111a28; }
+.workspace #repository-options button[aria-pressed="true"] { background: #233958; color: #b5d0ff; }
+.workspace #repository-options button:hover { background: #263b58; }
+.workspace .changes-viewer { color: #d8dee9; }
+
+.workspace .label { color: #c5d2e5; }

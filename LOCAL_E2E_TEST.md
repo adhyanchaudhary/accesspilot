@@ -184,3 +184,22 @@ Inspect n8n manually in that case.
 
 Current validation is mocked/local Linux. Live Windows Chromium, OAuth consent,
 Cloudflare routing, n8n/Gemini and real GitHub writes require the checklist above.
+
+## Check the dark code-review workspace
+
+No n8n node, webhook payload or remediation response needs changing. After pulling
+this update, restart backend/frontend and submit a **fresh** audit; older completed
+jobs have no recorded preview. When remediation confirms a draft PR, check:
+
+- The results workspace displays actual changed paths, green + additions, red −
+  deletions, old/new line numbers, context and the pinned base/confirmed commit.
+- Selecting another file changes the diff; Copy patch copies only the visible patch.
+- The changes request is GET /audits/{job_id}/changes with browser cookies and no
+  machine Bearer credential. It is not reissued on every status poll.
+- Compare the shown changes with that exact GitHub draft commit. They remain proposed
+  changes; the viewer does not merge, edit, execute or verify generated code.
+- Review at mobile width: file navigation stacks above the editor and long code
+  scrolls inside it. The landing page keeps its original theme.
+- Oversized/protected previews say unavailable, not zero changes. The PR link remains
+  available. Errors offer Retry preview without repeating remediation.
+- A signed-out browser cannot read the endpoint; another user cannot read the job.

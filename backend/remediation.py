@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from .change_previews import file_preview, bounded_previews, unavailable
 from .github_auth import app_jwt
 from .job_sources import pinned_tree, source_path, source_text, valid_sha
 
@@ -137,7 +138,7 @@ async def remediate(body, request, access):
         if raw.get('sha') != tree:
             raise HTTPException(409, 'Pinned tree does not match')
         entries = {entry['path']: entry for entry in raw['tree'] if isinstance(entry, dict) and isinstance(entry.get('path'), str)}
-        updates = []
+        updates, previews = [], []
         for change in sorted(body.changes, key=lambda item: item.file_path):
             entry = entries.get(change.file_path)
             if (not entry or entry.get('type') != 'blob' or entry.get('mode') not in ('100644', '100755')
@@ -147,11 +148,21 @@ async def remediate(body, request, access):
             original = await source_text(github, job, read_token, entry)
             if not text_allowed(original) or change.updated_code == original:
                 raise HTTPException(422, 'Binary, protected or unchanged source cannot be remediated')
+            ids = sorted(set(body.issue_ids + change.issue_ids))
+            preview_secrets = (*known_secrets, github.settings.n8n_webhook_url, github.settings.private_key)
+            protected = any(secret and len(secret) >= 8 and secret in value
+                for secret in preview_secrets for value in [original, change.updated_code, change.file_path, *ids])
+            if protected or any(not text_allowed(value) for value in ids):
+                # Do not cache source/metadata that could contain a runtime credential.
+                previews.append(unavailable('[protected file]', 'protected_content'))
+            else:
+                previews.append(file_preview(change.file_path, original, change.updated_code, ids))
             updates.append({'path': change.file_path, 'type': 'blob', 'mode': entry['mode'], 'content': change.updated_code})
         branch = 'accesspilot/remediation-' + str(UUID(job['id']))
         if branch == repo['default_branch']:
             raise HTTPException(409, 'Remediation branch cannot be the default branch')
         state = old or {'fingerprint': fingerprint, 'branch': branch, 'pending': None}
+        state.setdefault('changes_preview', bounded_previews(previews))
         job['remediation'] = state
         ref_path = root + '/git/ref/heads/' + quote(branch, safe='')
 

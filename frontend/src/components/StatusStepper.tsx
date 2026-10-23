@@ -48,6 +48,8 @@ export function StatusStepper({ status }: { status: AuditStatus }) {
             >
               {done ? (
                 <Check className="h-5 w-5" aria-hidden="true" />
+              ) : active && step === 'submitted' ? (
+                <Check className="h-5 w-5" aria-hidden="true" />
               ) : active ? (
                 <Spinner className="h-5 w-5" />
               ) : (

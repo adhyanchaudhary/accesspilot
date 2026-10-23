@@ -688,3 +688,81 @@ can leave partial GitHub work; inspect n8n/branch state before retrying. A later
 verified successful retry replaces the failure view. There is no completion callback
 for upstream Gemini failures or zero-change workflows: absent a remediation request,
 the browser keeps waiting until expiry. See the manual checklist for diagnosis.
+
+## Browser code-review previews
+
+The dark dashboard opens each audit in a read-only review workspace. After a confirmed
+remediation, it fetches **GET /audits/{job_id}/changes** using the existing browser
+session (`credentials: 'include'`). This is a browser read endpoint, separate from
+`/service/jobs/*`: no worker Bearer credential belongs in the frontend. No n8n changes
+or extra Gemini calls are required; the existing remediation request is unchanged.
+
+Each read checks the authenticated job owner, the original owner's live session,
+current GitHub user identity, user/App installation repository grants and repository
+identity, then rechecks local session/job expiry after network awaits. Another owner
+or unknown/expired job receives 404; missing session receives 401, revoked/mismatched
+access 403, and upstream failure a sanitized 502. Responses use Cache-Control: no-store.
+GET has no side effects on repository contents; it mints only a scoped read token
+internally to check the current installation grant.
+
+Before GitHub writes, remediation computes a private preview from the hash-verified
+original blob in the pinned tree and the validated replacement that will be committed.
+The preview becomes readable only once an exact matching draft PR result is confirmed.
+Failed or ambiguous writes never expose candidate source. Matching retries retain the
+same snapshot; current default-branch changes do not rewrite the recorded comparison.
+The normal job-status response contains no source diffs and is still lightweight.
+
+Completed response, abbreviated illustrative shape:
+
+```json
+{
+  "job_id": "job UUID",
+  "status": "completed",
+  "reason": null,
+  "base_sha": "40-character pinned base SHA",
+  "commit_sha": "40-character confirmed commit SHA",
+  "branch": "accesspilot/remediation-<job UUID>",
+  "files": [{
+    "file_path": "src/App.tsx",
+    "status": "available",
+    "reason": null,
+    "old_blob_sha": "40-character original Git blob SHA",
+    "new_blob_sha": "40-character replacement Git blob SHA",
+    "issue_ids": ["image-alt"],
+    "additions": 1,
+    "deletions": 1,
+    "hunks": [{
+      "old_start": 1, "old_count": 1, "new_start": 1, "new_count": 1,
+      "lines": [
+        {"kind": "delete", "old_line": 1, "new_line": null, "text": "old source", "ending": "lf"},
+        {"kind": "add", "old_line": null, "new_line": 1, "text": "updated source", "ending": "none"}
+      ]
+    }]
+  }]
+}
+```
+
+Hunks use three context lines; kind is context/add/delete. Line endings are lf, crlf,
+cr or none (no terminating newline), preserved for comparison and displayed where
+needed. Counts are line additions/deletions, not estimates of fixed accessibility
+issues. The UI verifies the preview commit matches its confirmed audit result,
+renders source through React text nodes, and never runs returned HTML/JavaScript.
+It fetches previews only after confirmation, not on each status poll; Retry preview
+retries only the read. Copy visible patch copies the selected file's shown hunks,
+not the full source file. Review line endings and the complete PR before applying code.
+
+Until confirmation the endpoint returns status=pending, files=[]. An unsuccessful
+operation returns status=unavailable, reason=remediation_failed, files=[]. Completed
+jobs created before this feature return preview_not_recorded; run a fresh audit to
+capture a preview. There is no historical reconstruction or new database.
+
+Preview computation is separately bounded: at most 2,000 combined old/new lines per
+file, 64 KiB serialized preview per file and a 512 KiB aggregate file-preview budget,
+inside the existing 10-file/24 KiB replacement-source write limits. Oversized previews
+return file status=unavailable, reason=preview_limit, empty hunks and **null** counts.
+They do not block an otherwise valid PR. Protected known runtime credentials in the
+original/metadata withhold the preview as protected_content; this is not comprehensive
+repository-secret detection. Generic protected-file labels avoid exposing those paths.
+A limited preview is clearly labeled and the confirmed PR remains reviewable on GitHub.
+Source snapshots expire with in-memory jobs and disappear on backend restart. They
+are not written to disk, logs, browser storage, PR bodies or ordinary status responses.

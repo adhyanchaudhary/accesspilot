@@ -70,3 +70,41 @@ export interface SubmitAuditInput {
 export interface HealthResponse {
   status: string
 }
+
+export interface DiffLine {
+  kind: 'context' | 'add' | 'delete'
+  old_line: number | null
+  new_line: number | null
+  text: string
+  ending: 'lf' | 'crlf' | 'cr' | 'none'
+}
+
+export interface DiffHunk {
+  old_start: number
+  old_count: number
+  new_start: number
+  new_count: number
+  lines: DiffLine[]
+}
+
+export interface FileDiff {
+  file_path: string
+  status: 'available' | 'unavailable'
+  reason: string | null
+  additions: number | null
+  deletions: number | null
+  issue_ids: string[]
+  old_blob_sha?: string
+  new_blob_sha?: string
+  hunks: DiffHunk[]
+}
+
+export interface AuditChanges {
+  job_id: string
+  status: 'pending' | 'completed' | 'unavailable'
+  reason: string | null
+  base_sha?: string
+  commit_sha?: string
+  branch?: string
+  files: FileDiff[]
+}
