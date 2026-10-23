@@ -1,3 +1,7 @@
+import type { CSSProperties } from "react";
+import { ArrowDown } from "lucide-react";
+import { useStartScan } from "./useStartScan";
+import { useWorkflowReveal } from "./useWorkflowReveal";
 import Image from "./Image";
 import styles from "./landing.module.css";
 import { ButtonLink } from "./ButtonLink";
@@ -8,7 +12,7 @@ const steps = [
   {
     title: "Submit your website",
     description:
-      "Paste your URL and, optionally, the GitHub repository you want AccessPilot to work with.",
+      "Connect GitHub, choose your authorized repository, and enter the URL of its deployed website.",
     image: "/assets/step-1-submit.svg",
     tone: "blue",
   },
@@ -27,22 +31,24 @@ const steps = [
     tone: "amber",
   },
   {
-    title: "Apply the patch",
+    title: "Prepare the patch",
     description:
-      "Review AI-suggested code changes and approve only the ones that fit your codebase.",
+      "AI proposes source changes. AccessPilot validates them and opens a draft pull request for your review.",
     image: "/assets/step-4-apply.svg",
     tone: "green",
   },
   {
-    title: "Verify the results",
+    title: "Review & verify",
     description:
-      "AccessPilot re-runs the checks and confirms each approved fix is working.",
+      "Review the diff, test the proposed changes, and rerun accessibility checks before you merge.",
     image: "/assets/step-5-verify.svg",
     tone: "teal",
   },
 ];
 
 export function HowItWorks() {
+  const start = useStartScan();
+  const { listRef, enabled, revealed, active } = useWorkflowReveal();
   return (
     <section
       className={`${styles.section} ${styles.howSection}`}
@@ -63,11 +69,12 @@ export function HowItWorks() {
                 How it works
               </span>
               <h2 id="how-title" className={styles.h2}>
-                From URL to verified fix, in five clear steps.
+                One scan.
+                <br />A clearer way forward.
               </h2>
               <p>
-                A guided flow that keeps developers in control and gives the whole team a shared
-                record of every change.
+                From your first URL to a reviewable pull request. Five deliberate steps,
+                with you in control of what ships.
               </p>
             </Reveal>
 
@@ -87,16 +94,24 @@ export function HowItWorks() {
             </Reveal>
 
             <Reveal delay={160}>
-              <ButtonLink href="#features" withArrow className={styles.howCta}>
-                Try the workflow
+              <ButtonLink onClick={start.onClick} withArrow className={styles.howCta}>
+                Start a scan
               </ButtonLink>
             </Reveal>
+            <div className={styles.howReadingGuide} aria-hidden="true">
+              <span className={styles.howReadingCount}>{String(active + 1).padStart(2, "0")} <i>/ 05</i></span>
+              <span>{steps[active].title}</span>
+              <ArrowDown size={15} />
+            </div>
           </div>
 
-          <Reveal delay={80}>
-            <ol className={styles.timeline}>
+            <ol ref={listRef} className={styles.timeline} aria-label="Accessibility audit workflow"
+              data-motion={enabled ? "enabled" : "off"}
+              style={{ "--workflow-progress": active / (steps.length - 1) } as CSSProperties}>
               {steps.map((step, index) => (
-                <li key={step.title} className={styles.timelineItem} data-tone={step.tone}>
+                <li key={step.title} className={styles.timelineItem} data-tone={step.tone}
+                  data-workflow-step={index} data-revealed={revealed.has(index)}
+                  data-active={active === index} aria-current={active === index ? "step" : undefined}>
                   <div className={styles.timelineMarker} aria-hidden="true">
                     <span>{String(index + 1).padStart(2, "0")}</span>
                   </div>
@@ -122,7 +137,6 @@ export function HowItWorks() {
                 </li>
               ))}
             </ol>
-          </Reveal>
         </div>
       </div>
     </section>
