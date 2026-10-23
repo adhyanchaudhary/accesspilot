@@ -1,0 +1,27 @@
+.github-connect-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  color: #142341;
+}
+.github-connect-dialog[open] { display: flex; justify-content: flex-end; }
+.github-connect-dialog::backdrop { background: rgb(10 24 48 / 48%); backdrop-filter: blur(4px); }
+.github-connect-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 30rem);
+  height: 100%;
+  background: white;
+  box-shadow: -12px 0 60px rgb(10 24 48 / 15%);
+  animation: github-connect-slide 240ms ease-out;
+}
+@keyframes github-connect-slide { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .github-connect-panel { animation: none; } }

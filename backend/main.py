@@ -182,7 +182,7 @@ def create_app(settings=None, transport=None, scanner=None):
         app.state.sessions.put(sid, {'token': credential['access_token'], 'csrf': csrf,
             'user': {'id': user['id'], 'login': user['login']}, 'expires': time.time() + ttl})
         app.state.sessions.items.pop(request.cookies.get('accesspilot_session', ''), None)
-        response = RedirectResponse(settings.frontend_origin + '/', status_code=303)
+        response = RedirectResponse(settings.frontend_origin + '/dashboard', status_code=303)
         cookie(response, 'accesspilot_session', sid, ttl)
         response.delete_cookie('accesspilot_oauth', path='/')
         return response

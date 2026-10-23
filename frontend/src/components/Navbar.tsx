@@ -11,7 +11,7 @@ function navClass({ isActive }: { isActive: boolean }): string {
 }
 
 export function Navbar() {
-  const { status, user, signIn, signOut } = useAuth()
+  const { status, user, openConnect, signOut } = useAuth()
 
   return (
     <header className="sticky top-0 z-30 border-b border-navy-100/80 bg-white/70 backdrop-blur-xl">
@@ -68,9 +68,9 @@ export function Navbar() {
               </button>
             </>
           ) : (
-            <button type="button" onClick={signIn} className="btn-primary">
+            <button type="button" onClick={openConnect} className="btn-primary">
               <Github className="h-4 w-4" aria-hidden="true" />
-              Sign in with GitHub
+              Connect GitHub
             </button>
           )}
         </div>

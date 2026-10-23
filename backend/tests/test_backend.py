@@ -66,6 +66,7 @@ def test_login_callback_and_logout(settings):
         assert other.get(f'/auth/github/callback?state={state}&code=ok').status_code == 400
         response = client.get(f'/auth/github/callback?state={state}&code=ok', follow_redirects=False)
         assert response.status_code == 303
+        assert response.headers['location'] == settings.frontend_origin + '/dashboard'
         assert 'private-user-token' not in response.text + str(response.headers)
         assert client.get(f'/auth/github/callback?state={state}&code=ok').status_code == 400
         me = client.get('/auth/github/me').json()

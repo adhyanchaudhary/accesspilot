@@ -75,7 +75,7 @@ CORS permits credentials only from FRONTEND_ORIGIN. Requests use
 | GET /health | None | `{ "status": "ok" }` process readiness |
 | GET /health/github | Session | App credential API check; no credentials returned |
 | GET /auth/github/login | None | Redirect to GitHub; establishes OAuth state cookie |
-| GET /auth/github/callback | State + browser cookie | Exchanges code, creates session, redirects to frontend |
+| GET /auth/github/callback | State + browser cookie | Exchanges code, creates session, redirects to frontend /dashboard |
 | GET /auth/github/me | Session | `{ "user": {"id": 1, "login": "alice"}, "csrf_token": "..." }` |
 | GET /github/install | Session | Redirect to app installation page |
 | GET /github/repositories | Session | `{ "repositories": [{"id": 7, "installation_id": 3, "full_name": "owner/site", "private": true, "default_branch": "main"}] }` |

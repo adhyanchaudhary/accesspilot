@@ -38,7 +38,7 @@ it('keeps Dashboard navigation separate from Start a scan', async () => {
   render(<MemoryRouter><AuthProvider><Header/></AuthProvider></MemoryRouter>)
   const dashboard = await screen.findAllByRole('link',{name:'Dashboard'})
   expect(dashboard[0].getAttribute('href')).toBe('/dashboard')
-  expect(screen.getAllByRole('link',{name:'Start a scan'})[0].getAttribute('href')).toBe('/dashboard#new-audit')
+  expect(screen.getAllByRole('button',{name:'Start a scan'})[0]).toBeTruthy()
 })
 it('spins cards with the button and preserves pause after hovering', () => {
   vi.spyOn(HTMLElement.prototype,'clientWidth','get').mockReturnValue(800)

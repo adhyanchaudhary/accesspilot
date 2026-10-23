@@ -118,7 +118,9 @@ Frontend, in another:
 npm --prefix frontend run dev
 ```
 
-Open **http://localhost:3000**. The API listens on port 8000. Use `localhost` consistently for browser requests and OAuth; `127.0.0.1` is a different cookie host.
+Open **http://localhost:3000**. Click **Start a scan** to open the connection panel;
+only **Connect my GitHub** redirects to GitHub. After authorization you return to
+the dashboard. Existing sessions show the connected account, Continue, and Disconnect. The API listens on port 8000. Use `localhost` consistently for browser requests and OAuth; `127.0.0.1` is a different cookie host.
 
 Use one backend process, without reload or multiple workers. For Linux/macOS setup and scanner platform details, see [backend/README.md](backend/README.md).
 

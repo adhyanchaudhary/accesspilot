@@ -129,7 +129,10 @@ Inspect n8n manually in that case.
 
 ## Real-data checklist
 
-1. Continue with GitHub; consent and return to localhost. Browser /auth/github/me
+1. Click Start a scan to open the connection panel. No OAuth navigation should happen
+   until you click Connect my GitHub. Consent on GitHub and return to the localhost
+   dashboard. An existing session instead shows Connected as @username with Continue
+   to dashboard and Disconnect; disconnect ends the local session, not App authorization. Browser /auth/github/me
    should return your user and CSRF token. Only an opaque HttpOnly cookie is stored.
 2. Open the dashboard and refresh repositories after installation. Only backend-
    authorized repositories should appear. Select the correct accesspilot-demo-store.

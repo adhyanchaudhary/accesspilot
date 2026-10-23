@@ -18,6 +18,9 @@ interface AuthContextValue {
   user: GitHubUser | null
   csrfToken: string | null
   error: string | null
+  connectOpen: boolean
+  openConnect: () => void
+  closeConnect: () => void
   signIn: () => void
   signOut: () => Promise<void>
   refresh: () => Promise<void>
@@ -32,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<GitHubUser | null>(null)
   const [csrfToken, setCsrfToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [connectOpen, setConnectOpen] = useState(false)
+  const openConnect = useCallback(() => setConnectOpen(true), [])
+  const closeConnect = useCallback(() => setConnectOpen(false), [])
   const mounted = useRef(true)
 
   useEffect(() => {
@@ -105,8 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, csrfToken, error, signIn, signOut, refresh, expireSession }),
-    [status, user, csrfToken, error, signIn, signOut, refresh, expireSession],
+    () => ({ status, user, csrfToken, error, connectOpen, openConnect, closeConnect, signIn, signOut, refresh, expireSession }),
+    [status, user, csrfToken, error, connectOpen, openConnect, closeConnect, signIn, signOut, refresh, expireSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

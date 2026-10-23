@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom'
+import { ConnectGitHubPanel } from './components/ConnectGitHubPanel'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AuthProvider } from './context/AuthContext'
 import { Dashboard } from './pages/Dashboard'
@@ -29,6 +30,7 @@ export default function App() {
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <ConnectGitHubPanel />
     </AuthProvider>
   )
 }
