@@ -1,11 +1,13 @@
 import {
+  ArrowRight,
+  ArrowUpRight,
   GitBranch,
   Github,
   Globe,
   Lock,
   PlugZap,
   ScanSearch,
-  Sparkles,
+  ShieldCheck,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -14,7 +16,7 @@ import { Alert } from '../components/Alert'
 import { Corners } from '../components/Corners'
 import { EmptyState } from '../components/EmptyState'
 import { Layout } from '../components/Layout'
-import { ServiceHealth } from '../components/ServiceHealth'
+import { ScanFlow } from '../components/ScanFlow'
 import { Spinner } from '../components/Spinner'
 import { useAuth } from '../context/AuthContext'
 import { api, isApiError } from '../lib/api'
@@ -163,178 +165,172 @@ export function Dashboard() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <form id="new-audit" onSubmit={handleSubmit} className="card scroll-mt-24 space-y-6 p-6">
-              <Corners />
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="repository" className="label mb-0">
-                    Repository
-                  </label>
-                  <div className="flex items-center gap-3">
-                    {reposState === 'ready' && repos.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => window.location.assign(api.installUrl())}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-navy-500 hover:text-brand-700"
-                      >
-                        <Github className="h-3.5 w-3.5" aria-hidden="true" />
-                        Manage
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {reposState === 'loading' && (
-                  <div className="skeleton h-11 w-full" aria-busy="true" />
-                )}
-
-                {reposState === 'error' && (
-                  <Alert variant="error" title="Could not load repositories">
-                    {reposError}{' '}
+        <form id="new-audit" onSubmit={handleSubmit} className="card scroll-mt-24 overflow-hidden">
+          <Corners />
+          <div className="grid gap-6 p-6 sm:p-7 lg:grid-cols-2 lg:gap-8">
+            <div className="min-w-0">
+              <div className="mb-2 flex min-h-[38px] flex-wrap items-center justify-between gap-2">
+                <label htmlFor="repository" className="label mb-0">
+                  Repository
+                </label>
+                <div className="flex items-center gap-3">
+                  {reposState === 'ready' && repos.length > 0 && (
                     <button
                       type="button"
-                      className="font-semibold underline"
-                      onClick={() => void loadRepositories()}
+                      title="Manage GitHub App access"
+                      onClick={() => window.location.assign(api.installUrl())}
+                      className="group inline-flex items-center gap-2 rounded-xl border border-brand-200 bg-gradient-to-r from-white to-brand-50 px-3.5 py-2 text-xs font-bold text-brand-700 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:text-brand-800 hover:shadow-md"
                     >
-                      Try again
+                      <Github className="h-4 w-4" aria-hidden="true" />
+                      Manage
+                      <ArrowUpRight
+                        className="h-3.5 w-3.5 text-brand-500 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
                     </button>
-                  </Alert>
-                )}
-
-                {reposState === 'ready' && repos.length === 0 && (
-                  <EmptyState
-                    icon={PlugZap}
-                    title="No repositories available"
-                    description="Install the AccessPilot GitHub App on at least one repository, then return to the dashboard."
-                    action={
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => window.location.assign(api.installUrl())}
-                      >
-                        <Github className="h-4 w-4" aria-hidden="true" />
-                        Configure GitHub App
-                      </button>
-                    }
-                  />
-                )}
-
-                {reposState === 'ready' && repos.length > 0 && (
-                  <div className="space-y-3">
-                    <RepositoryPicker repositories={repos} selected={selectedRepo} onSelect={repo => {
-                      setSelectedRepoId(repo.id)
-                      invalidateIdempotency()
-                    }} />
-                    {selectedRepo && (
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
-                        <span className="inline-flex items-center gap-1.5">
-                          <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
-                          default branch: {selectedRepo.default_branch}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          {selectedRepo.private ? (
-                            <>
-                              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                              private
-                            </>
-                          ) : (
-                            <>
-                              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
-                              public
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="website" className="label">
+              {reposState === 'loading' && (
+                <div className="skeleton h-11 w-full" aria-busy="true" />
+              )}
+
+              {reposState === 'error' && (
+                <Alert variant="error" title="Could not load repositories">
+                  {reposError}{' '}
+                  <button
+                    type="button"
+                    className="font-semibold underline"
+                    onClick={() => void loadRepositories()}
+                  >
+                    Try again
+                  </button>
+                </Alert>
+              )}
+
+              {reposState === 'ready' && repos.length === 0 && (
+                <EmptyState
+                  icon={PlugZap}
+                  title="No repositories available"
+                  description="Install the AccessPilot GitHub App on at least one repository, then return to the dashboard."
+                  action={
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => window.location.assign(api.installUrl())}
+                    >
+                      <Github className="h-4 w-4" aria-hidden="true" />
+                      Configure GitHub App
+                    </button>
+                  }
+                />
+              )}
+
+              {reposState === 'ready' && repos.length > 0 && (
+                <div className="space-y-3">
+                  <RepositoryPicker repositories={repos} selected={selectedRepo} onSelect={repo => {
+                    setSelectedRepoId(repo.id)
+                    invalidateIdempotency()
+                  }} />
+                  {selectedRepo && (
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-navy-500">
+                      <span className="inline-flex items-center gap-1.5">
+                        <GitBranch className="h-3.5 w-3.5" aria-hidden="true" />
+                        default branch: {selectedRepo.default_branch}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        {selectedRepo.private ? (
+                          <>
+                            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                            private
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+                            public
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="min-w-0">
+              <div className="mb-2 flex min-h-[38px] items-center">
+                <label htmlFor="website" className="label mb-0">
                   Deployed website URL
                 </label>
-                <div className="relative">
-                  <Globe
-                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-500/70"
-                    aria-hidden="true"
-                  />
-                  <input
-                    id="website"
-                    type="url"
-                    inputMode="url"
-                    autoComplete="url"
-                    placeholder="https://your-site.netlify.app"
-                    value={websiteUrl}
-                    onChange={(event) => {
-                      setWebsiteUrl(event.target.value)
-                      invalidateIdempotency()
-                    }}
-                    className="input pl-9"
-                    required
-                  />
-                </div>
-                <p className="mt-1.5 text-xs text-navy-400">
-                  Must be a public page reachable on port 80 or 443. Login-protected pages and
-                  WebSocket-heavy pages may not scan reliably.
-                </p>
               </div>
-
-              {formError && <Alert variant="error">{formError}</Alert>}
-
-              <div className="flex items-center justify-end gap-3">
-                <button
-                  type="submit"
-                  className="btn-primary px-5 py-3 text-base"
-                  disabled={submitting || reposState !== 'ready' || repos.length === 0}
-                >
-                  {submitting ? (
-                    <>
-                      <Spinner className="h-5 w-5" />
-                      Starting audit…
-                    </>
-                  ) : (
-                    <>
-                      <ScanSearch className="h-5 w-5" aria-hidden="true" />
-                      Scan &amp; Fix
-                    </>
-                  )}
-                </button>
+              <div className="relative">
+                <Globe
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-500/70"
+                  aria-hidden="true"
+                />
+                <input
+                  id="website"
+                  type="url"
+                  inputMode="url"
+                  autoComplete="url"
+                  placeholder="https://your-site.netlify.app"
+                  value={websiteUrl}
+                  onChange={(event) => {
+                    setWebsiteUrl(event.target.value)
+                    invalidateIdempotency()
+                  }}
+                  className="input pl-9"
+                  required
+                />
               </div>
-            </form>
+              <p className="mt-1.5 text-xs leading-relaxed text-navy-400">
+                Must be a public page reachable on port 80 or 443. Login-protected pages and
+                WebSocket-heavy pages may not scan reliably.
+              </p>
+            </div>
+
+            {formError && (
+              <div className="lg:col-span-2">
+                <Alert variant="error">{formError}</Alert>
+              </div>
+            )}
           </div>
 
-          <aside className="space-y-6">
-            <ServiceHealth />
+          <div className="flex flex-col gap-4 border-t border-navy-100 bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
+            <p className="flex items-start gap-2.5 text-xs leading-relaxed text-navy-500 sm:max-w-md">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden="true" />
+              AccessPilot prepares a draft pull request only. Nothing is merged without your review.
+            </p>
+            <button
+              type="submit"
+              className="audit-submit group w-full self-end sm:w-auto sm:self-auto"
+              disabled={submitting || reposState !== 'ready' || repos.length === 0}
+            >
+              <span className="audit-submit-icon">
+                {submitting ? (
+                  <Spinner className="h-5 w-5" />
+                ) : (
+                  <ScanSearch className="h-5 w-5" aria-hidden="true" />
+                )}
+              </span>
+              <span className="audit-submit-copy">
+                <span className="audit-submit-kicker">
+                  {submitting ? 'Launching' : 'New audit'}
+                </span>
+                <span className="audit-submit-label">
+                  {submitting ? 'Starting audit…' : 'Scan & Fix'}
+                </span>
+              </span>
+              {!submitting && (
+                <ArrowRight className="audit-submit-arrow h-5 w-5" aria-hidden="true" />
+              )}
+            </button>
+          </div>
+        </form>
 
-            <div className="card p-5">
-              <Corners />
-              <h2 className="flex items-center gap-2 text-sm font-bold text-navy-900">
-                <Sparkles className="h-4 w-4 text-brand-600" aria-hidden="true" />
-                What happens next
-              </h2>
-              <ol className="mt-3 space-y-3 text-sm text-navy-600">
-                <li className="flex gap-2">
-                  <span className="font-mono text-xs text-brand-500">1</span>
-                  A headless browser renders the page and runs an axe-core audit.
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-mono text-xs text-brand-500">2</span>
-                  Violations and affected elements are summarized.
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-mono text-xs text-brand-500">3</span>
-                  The AI workflow prepares fixes against your source.
-                </li>
-                <li className="flex gap-2">
-                  <span className="font-mono text-xs text-brand-500">4</span>
-                  A draft pull request link appears on the results page.
-                </li>
-              </ol>
-            </div>
-          </aside>
+        <div className="mt-6">
+          <ScanFlow />
         </div>
       </div>
     </Layout>

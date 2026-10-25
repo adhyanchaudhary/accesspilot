@@ -3,12 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./landing.module.css";
 import { SectionHeading } from "./SectionHeading";
 
-type Feature = { tag: string; title: string; description: string; image: string; alt: string; number: string; color: string; ink: string; bullets: string[] };
+type Feature = { tag: string; title: string; description: string; image: string; alt: string; color: string; ink: string; bullets: string[] };
 const features: Feature[] = [
-  { tag: "Inclusive", title: "Inclusive by Design.", description: "Build experiences that work for every ability, device, and input method — not just the default user.", image: "/assets/feature-inclusive.svg", alt: "An accessible website preview surrounded by alt text, contrast, keyboard, and caption checks.", number: "01", color: "#f4b84d", ink: "#282333", bullets: ["Keyboard & focus paths", "Contrast and readable UI", "Inclusive interaction checks"] },
-  { tag: "AI-assisted", title: "Smarter Fix Suggestions.", description: "AccessPilot pinpoints the issue and proposes code-level fixes you can review before applying.", image: "/assets/feature-ai.svg", alt: "A code editor with an accessibility issue highlighted and an AI panel suggesting a fix.", number: "02", color: "#f2f1ee", ink: "#282333", bullets: ["Context-aware code hints", "Review before applying", "Developer-first explanations"] },
-  { tag: "Verification", title: "Verified Changes.", description: "Every approved patch is re-checked automatically, so you know the fix actually solved the problem.", image: "/assets/feature-verified.svg", alt: "A verified shield and checklist confirming contrast, keyboard, and ARIA checks.", number: "03", color: "#7c4ee4", ink: "#ffffff", bullets: ["Re-run checks after fixes", "Confirm outcomes", "Keep changes accountable"] },
-  { tag: "Workflow", title: "Faster, Easier Compliance.", description: "Replace scattered audits and manual tickets with one continuous, repeatable accessibility workflow.", image: "/assets/feature-speed.svg", alt: "A stopwatch and a single scan, fix, verify workflow showing a faster compliance process.", number: "04", color: "#c9a9f6", ink: "#282333", bullets: ["One repeatable workflow", "Prioritized issue lists", "Less manual busywork"] },
+  { tag: "Inclusive", title: "Inclusive by Design.", description: "Build experiences that work for every ability, device, and input method — not just the default user.", image: "/assets/feature-inclusive.svg", alt: "An accessible website preview surrounded by alt text, contrast, keyboard, and caption checks.", color: "#f4b84d", ink: "#282333", bullets: ["Keyboard & focus paths", "Contrast and readable UI", "Inclusive interaction checks"] },
+  { tag: "AI-assisted", title: "Smarter Fix Suggestions.", description: "AccessPilot pinpoints the issue and proposes code-level fixes you can review before applying.", image: "/assets/feature-ai.svg", alt: "A code editor with an accessibility issue highlighted and an AI panel suggesting a fix.", color: "#f2f1ee", ink: "#282333", bullets: ["Context-aware code hints", "Review before applying", "Developer-first explanations"] },
+  { tag: "Verification", title: "Verified Changes.", description: "Every approved patch is re-checked automatically, so you know the fix actually solved the problem.", image: "/assets/feature-verified.svg", alt: "A verified shield and checklist confirming contrast, keyboard, and ARIA checks.", color: "#7c4ee4", ink: "#ffffff", bullets: ["Re-run checks after fixes", "Confirm outcomes", "Keep changes accountable"] },
+  { tag: "Workflow", title: "Faster, Easier Compliance.", description: "Replace scattered audits and manual tickets with one continuous, repeatable accessibility workflow.", image: "/assets/feature-speed.svg", alt: "A stopwatch and a single scan, fix, verify workflow showing a faster compliance process.", color: "#c9a9f6", ink: "#282333", bullets: ["One repeatable workflow", "Prioritized issue lists", "Less manual busywork"] },
 ];
 const CARD_COUNT = 22;
 const TAU = Math.PI * 2;
@@ -118,7 +118,7 @@ export function Features() {
   return (
     <section className={`${styles.section} ${styles.featureStackSection}`} id="features" aria-labelledby="features-title">
       <div className={styles.shell}>
-        <SectionHeading index="01" kicker="Why AccessPilot" id="features-title" title="Accessibility, without the busywork." description="One connected workflow for finding issues, understanding their impact, and shipping fixes that hold up." center />
+        <SectionHeading kicker="Why AccessPilot" id="features-title" title="Accessibility, without the busywork." description="One connected workflow for finding issues, understanding their impact, and shipping fixes that hold up." center />
         <div className={styles.rolodexLayout}>
           <div className={`${styles.rolodexStage} ${isDragging ? styles.rolodexDragging : ""}`} ref={stageRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} tabIndex={0} onKeyDown={event => {
             if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
@@ -129,25 +129,21 @@ export function Features() {
             {Array.from({ length: CARD_COUNT }, (_, i) => {
               const feature = features[i % features.length];
               return <article key={i} data-ring-card data-feature={i % features.length} className={styles.rolodexCard} style={{ "--card-color": feature.color, "--card-ink": feature.ink } as React.CSSProperties} aria-label={`${feature.title} feature card ${i + 1}`}>
-                <div className={styles.rolodexCardHead}><span>ACCESSPILOT / {feature.number}</span><span className={styles.rolodexDot} /></div>
+                <div className={styles.rolodexCardHead}><span>ACCESSPILOT</span><span className={styles.rolodexDot} /></div>
                 <div className={styles.rolodexVisual}><Image src={feature.image} alt={feature.alt} width={440} height={260} unoptimized draggable={false} /></div>
                 <div className={styles.rolodexCopy}><span className={styles.rolodexTag}>{feature.tag}</span><h3>{feature.title}</h3><p>{feature.description}</p><ul>{feature.bullets.map(item => <li key={item}>{item}</li>)}</ul></div>
-                <span className={styles.rolodexCardIndex}>{String(i + 1).padStart(2, "0")} <i>/ 22</i></span>
               </article>;
             })}
-            <div className={styles.rolodexCore} aria-hidden="true"><span>AP</span><i>ACCESSIBILITY ENGINE</i></div>
-            <div className={styles.rolodexReadout} aria-hidden="true"><span>LIVE ROTATION</span><b>22 <i>CARDS</i></b><span>DRAG · THROW · EXPLORE</span></div>
           </div>
           <div className={styles.rolodexInfo}>
-            <div className={styles.rolodexInfoLabel}><span className={styles.rolodexStatus} /> FEATURE IN FOCUS <span>{frontFeature.number} / 04</span></div>
+            <div className={styles.rolodexInfoLabel}><span className={styles.rolodexStatus} /> FEATURE IN FOCUS</div>
             <h3>{frontFeature.title}</h3><p>{frontFeature.description}</p>
             <div className={styles.rolodexBullets}>{frontFeature.bullets.map((item, i) => <span key={item}><b>0{i + 1}</b>{item}</span>)}</div>
             <div className={styles.rolodexControls}>
-              <button type="button" className={styles.rolodexButtonGhost} onClick={() => nudge(-1)} aria-label="Rotate cards backwards">←</button>
-              <button type="button" className={styles.rolodexButton} onClick={() => nudge(1)} aria-label="Spin feature cards">Spin cards <span aria-hidden="true">↗</span></button>
+              <button type="button" className={styles.rolodexButton} onClick={() => nudge(-1)} aria-label="Rotate cards backwards">←</button>
+              <button type="button" className={styles.rolodexButton} onClick={() => nudge(1)} aria-label="Spin feature cards">→</button>
               <button type="button" className={styles.rolodexButtonGhost} onClick={() => setPaused(value => !value)} aria-pressed={paused} aria-label={paused ? "Resume rotation" : "Pause rotation"}>{paused ? "▶" : "Ⅱ"}</button>
             </div>
-            <p className={styles.rolodexHint}>DRAG TO THROW <span>·</span> FOCUS CARDS + ARROW KEYS <span>·</span> HOVER TO PAUSE</p>
           </div>
         </div>
       </div>

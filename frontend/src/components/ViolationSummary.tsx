@@ -17,7 +17,7 @@ function StatCard({
       ? 'bg-red-50 text-red-600'
       : 'bg-amber-50 text-amber-600'
   return (
-    <div className="card flex items-center gap-4 p-5">
+    <div className="card flex h-full items-center gap-4 p-5">
       <span className={`grid h-11 w-11 place-items-center rounded-xl ${toneClasses}`}>
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
@@ -53,7 +53,7 @@ export function ViolationSummary({
 
   if (scanning) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid h-full gap-4 sm:grid-cols-2">
         <StatSkeleton label="Accessibility violations" />
         <StatSkeleton label="Affected elements" />
       </div>
@@ -62,7 +62,7 @@ export function ViolationSummary({
 
   if (summary) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid h-full gap-4 sm:grid-cols-2">
         <StatCard
           icon={AlertOctagon}
           value={summary.violation_count.toLocaleString()}

@@ -1,26 +1,25 @@
 import {
+  Activity,
   ArrowLeft,
   Copy,
   ExternalLink,
   FileSearch,
   Github,
-  GitPullRequest,
   Globe,
-  History,
   RefreshCw,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { Alert } from '../components/Alert'
+import { AuditLoadingScreen } from '../components/AuditLoadingScreen'
+import { AuditStatusSummary } from '../components/AuditStatusSummary'
 import { ChangesViewer } from '../components/ChangesViewer'
-import { Corners } from '../components/Corners'
 import { EmptyState } from '../components/EmptyState'
 import { Layout } from '../components/Layout'
-import { PageLoader } from '../components/PageLoader'
 import { RemediationPanel } from '../components/RemediationPanel'
-import { ScanIndicator } from '../components/ScanIndicator'
 import { StatusBadge } from '../components/StatusBadge'
 import { StatusStepper } from '../components/StatusStepper'
+import { ViolationList } from '../components/ViolationList'
 import { ViolationSummary } from '../components/ViolationSummary'
 import { useAuth } from '../context/AuthContext'
 import { api, isApiError } from '../lib/api'
@@ -38,6 +37,14 @@ export function nextDelay(job: AuditJob): number | null {
   // cadence until the backend reports a pull request, without inventing one.
   if (job.status === 'submitted' && !job.remediation?.pr_url) return REMEDIATION_INTERVAL
   return null
+}
+
+function displayHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 function CopyButton({ value }: { value: string }) {
@@ -137,67 +144,97 @@ export function Results() {
     }
   }, [jobId, expireSession, schedule, reloadKey])
 
+  const processing = job === null ? loading : statusMeta(job.status).active
+
+  if (processing) {
+    return (
+      <Layout>
+        <AuditLoadingScreen
+          job={job}
+          websiteUrl={meta?.websiteUrl}
+          repoFullName={meta?.repoFullName}
+        />
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <Link
           to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-navy-500 hover:text-brand-700"
+          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-navy-500 hover:text-brand-700"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          <ArrowLeft
+            className="h-4 w-4 transition-transform group-hover:-translate-x-0.5"
+            aria-hidden="true"
+          />
           Back to dashboard
         </Link>
 
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight text-navy-950 sm:text-3xl">
-                Audit results
-              </h1>
-              {job && <StatusBadge status={job.status} />}
+        <div className="workspace-intro relative mt-6 overflow-hidden rounded-2xl border border-brand-200 p-6 sm:p-8">
+          <div
+            className="pointer-events-none absolute inset-0 bg-grid-fade opacity-70"
+            aria-hidden="true"
+          />
+          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <span className="eyebrow">
+                <FileSearch className="h-3.5 w-3.5" aria-hidden="true" />
+                Audit report
+              </span>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold tracking-tight text-navy-950 sm:text-3xl">
+                  Audit results
+                </h1>
+                {job && <StatusBadge status={job.status} />}
+              </div>
+              <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">
+                <span className="inline-flex max-w-full items-center gap-2 rounded-xl border border-brand-100 bg-white/75 py-1.5 pl-3 pr-1.5 font-mono text-[11px] text-navy-600 backdrop-blur">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.12em] text-navy-400">
+                    Job
+                  </span>
+                  <span className="max-w-[190px] truncate" title={jobId}>
+                    {jobId}
+                  </span>
+                  {jobId && <CopyButton value={jobId} />}
+                </span>
+                {meta?.websiteUrl && (
+                  <a
+                    href={meta.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={meta.websiteUrl}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-brand-100 bg-white/75 px-3 py-1.5 text-[11px] font-medium text-navy-600 backdrop-blur transition hover:border-brand-300 hover:text-brand-700"
+                  >
+                    <Globe className="h-3.5 w-3.5 shrink-0 text-brand-500" aria-hidden="true" />
+                    <span className="max-w-[210px] truncate">{displayHost(meta.websiteUrl)}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0 text-navy-400" aria-hidden="true" />
+                  </a>
+                )}
+                {meta?.repoFullName && (
+                  <span className="inline-flex max-w-full items-center gap-1.5 rounded-xl border border-brand-100 bg-white/75 px-3 py-1.5 text-[11px] font-medium text-navy-600 backdrop-blur">
+                    <Github className="h-3.5 w-3.5 shrink-0 text-navy-500" aria-hidden="true" />
+                    <span className="max-w-[230px] truncate" title={meta.repoFullName}>
+                      {meta.repoFullName}
+                    </span>
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="mt-2 flex items-center gap-2">
-              <span className="font-mono text-xs text-navy-500">{jobId}</span>
-              {jobId && <CopyButton value={jobId} />}
-            </div>
+            <button
+              type="button"
+              className="btn-secondary shrink-0 self-start border-brand-100 bg-white/80 backdrop-blur lg:self-auto"
+              onClick={() => setReloadKey((key) => key + 1)}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Refresh
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-secondary self-start"
-            onClick={() => setReloadKey((key) => key + 1)}
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            Refresh
-          </button>
         </div>
 
-        {meta && (meta.websiteUrl || meta.repoFullName) && (
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-brand-100 bg-white/70 px-4 py-3 font-mono text-xs text-navy-500 backdrop-blur">
-            {meta.websiteUrl && (
-              <a
-                href={meta.websiteUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 hover:text-brand-700"
-              >
-                <Globe className="h-4 w-4" aria-hidden="true" />
-                {meta.websiteUrl}
-                <ExternalLink className="h-3 w-3" aria-hidden="true" />
-              </a>
-            )}
-            {meta.repoFullName && (
-              <span className="inline-flex items-center gap-1.5">
-                <Github className="h-4 w-4" aria-hidden="true" />
-                {meta.repoFullName}
-              </span>
-            )}
-          </div>
-        )}
-
         <div className="mt-8">
-          {loading && !job ? (
-            <PageLoader label="Loading audit status" />
-          ) : notFound ? (
+          {notFound ? (
             <EmptyState
               icon={FileSearch}
               title="Audit not found"
@@ -208,92 +245,74 @@ export function Results() {
                 </Link>
               }
             />
+          ) : !job ? (
+            <Alert variant="error" title="Could not load this audit">
+              {error ?? 'This audit is unavailable.'}{' '}
+              <button
+                type="button"
+                className="font-semibold underline"
+                onClick={() => {
+                  setLoading(true)
+                  setError(null)
+                  setReloadKey((key) => key + 1)
+                }}
+              >
+                Try again
+              </button>
+            </Alert>
           ) : (
             <div className="space-y-6">
-              {job && (
-                <div className="card overflow-hidden">
-                  <Corners />
-                  <div className="border-b border-navy-100 px-6 py-5">
-                    <StatusStepper status={job.status} />
-                  </div>
+              <div className="card overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 bg-white/60 px-5 py-4 sm:px-6">
+                  <h2 className="flex items-center gap-2 text-sm font-bold text-navy-900">
+                    <Activity className="h-4 w-4 text-brand-600" aria-hidden="true" />
+                    Audit lifecycle
+                  </h2>
+                  <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-navy-400">
+                    Backend-reported status
+                  </span>
                 </div>
+                <div className="px-5 py-6 sm:px-6">
+                  <StatusStepper status={job.status} />
+                </div>
+              </div>
+
+              <ChangesViewer key={job.job_id} job={job} />
+
+              {job.status === 'failed' && (
+                <Alert variant="error" title={describeAuditError(job.error).title}>
+                  <p>{describeAuditError(job.error).body}</p>
+                  {job.error && (
+                    <p className="mt-1">
+                      Code:{' '}
+                      <code className="rounded bg-red-100 px-1.5 py-0.5 font-mono text-xs">
+                        {job.error}
+                      </code>
+                    </p>
+                  )}
+                </Alert>
               )}
 
-              {job && <ChangesViewer key={job.job_id} job={job} />}
+              {error && job.status !== 'failed' && (
+                <Alert variant="warning" title="Live updates paused">
+                  {error}
+                </Alert>
+              )}
 
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="min-w-0 sm:col-span-2">
+                  <ViolationSummary summary={job.summary} status={job.status} />
+                </div>
+                <AuditStatusSummary remediation={job.remediation} status={job.status} />
+              </div>
+
+              <div className="grid items-start gap-6 lg:grid-cols-3">
                 <div className="min-w-0 space-y-6 lg:col-span-2">
-                  {job?.status === 'failed' && (
-                    <Alert variant="error" title={describeAuditError(job.error).title}>
-                      <p>{describeAuditError(job.error).body}</p>
-                      {job.error && (
-                        <p className="mt-1">
-                          Code:{' '}
-                          <code className="rounded bg-red-100 px-1.5 py-0.5 font-mono text-xs">
-                            {job.error}
-                          </code>
-                        </p>
-                      )}
-                    </Alert>
-                  )}
-
-                  {error && job?.status !== 'failed' && (
-                    <Alert variant="warning" title="Live updates paused">
-                      {error}
-                    </Alert>
-                  )}
-
-                  {job && <ViolationSummary summary={job.summary} status={job.status} />}
-                  {job?.audit && <div className="card space-y-4 p-5">
-                    <h2 className="text-sm font-bold">Detected accessibility issues</h2>
-                    {job.audit.violations.length === 0 && <p>No axe violations detected on the scanned page. Manual checks may still be needed.</p>}
-                    {job.audit.violations.map(v => <details key={v.id}>
-                      <summary className="cursor-pointer font-semibold">{v.id} — {v.impact ?? 'Unspecified impact'}</summary>
-                      <p className="my-2 text-sm">{v.description}</p>
-                      {v.nodes.map((n, i) => <div key={i} className="my-3 overflow-auto text-xs">
-                        <pre className="whitespace-pre-wrap break-all">{JSON.stringify(n.target)}</pre>
-                        <pre className="whitespace-pre-wrap break-all">{n.html}</pre>
-                        {n.failureSummary && <p>{n.failureSummary}</p>}
-                      </div>)}
-                    </details>)}
-                  </div>}
-
-                  {job && (
-                    <RemediationPanel remediation={job.remediation} status={job.status} />
-                  )}
+                  {job.audit && <ViolationList violations={job.audit.violations} />}
                 </div>
 
-                <aside className="space-y-6">
-                  {job && (
-                    <div className="card p-6">
-                      <Corners />
-                      <h2 className="text-center text-sm font-bold text-navy-900">
-                        Audit status
-                      </h2>
-                      <div className="mt-5">
-                        {job.remediation?.status === 'completed' ? <div className="space-y-3 text-center">
-                          <GitPullRequest className="mx-auto h-10 w-10 text-emerald-600" aria-hidden="true" />
-                          <p className="font-semibold text-navy-900">Draft PR confirmed</p>
-                          <p className="text-xs leading-relaxed text-navy-500">Proposed changes are ready for human review. Nothing has been merged or verified by this preview.</p>
-                        </div> : <ScanIndicator status={job.status} />}
-                      </div>
-                    </div>
-                  )}
-
-                  {job?.status === 'submitted' && !job.remediation?.pr_url && job.remediation?.status !== 'failed' && (
-                    <div className="card p-5">
-                      <Corners />
-                      <div className="flex items-center gap-2 text-sm font-bold text-navy-900">
-                        <History className="h-4 w-4 text-brand-600" aria-hidden="true" />
-                        Watching for remediation
-                      </div>
-                      <p className="mt-2 text-xs leading-relaxed text-navy-500">
-                        The audit was accepted by the workflow. AccessPilot will show the draft
-                        pull request here as soon as the backend reports it. This is not the same
-                        as remediation being complete.
-                      </p>
-                    </div>
-                  )}
+                <aside className="min-w-0">
+                  <RemediationPanel remediation={job.remediation} status={job.status} />
                 </aside>
               </div>
             </div>
