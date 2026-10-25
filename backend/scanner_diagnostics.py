@@ -6,11 +6,11 @@ import re
 import sys
 
 STAGES = {'bootstrap', 'dependencies', 'driver_start', 'browser_launch', 'context_setup',
-          'navigation', 'axe', 'report_write', 'report_read', 'process_spawn', 'cleanup', 'complete'}
+          'navigation', 'axe', 'report_emit', 'report_read', 'process_spawn', 'cleanup', 'complete'}
 REASONS = {'running', 'ok', 'dependency_missing', 'dependency_load_failed', 'browser_missing',
            'sandbox_unavailable', 'browser_launch_failed', 'browser_profile_failed', 'browser_dependency_failed', 'driver_start_failed', 'context_setup_failed',
            'navigation_timeout', 'proxy_connection_failed', 'dns_failed', 'certificate_failed',
-           'navigation_failed', 'axe_failed', 'report_write_failed', 'report_read_failed',
+           'navigation_failed', 'axe_failed', 'report_emit_failed', 'report_read_failed',
            'process_failed', 'process_spawn_failed', 'containment_failed', 'resource_limit',
            'scan_timeout', 'cleanup_failed', 'unexpected_failure'}
 EXCEPTIONS = {'Error', 'TimeoutError', 'OSError', 'FileNotFoundError', 'ModuleNotFoundError',
@@ -64,7 +64,7 @@ def classify(stage, error):
             return 'navigation_timeout'
         return 'navigation_failed'
     return {'driver_start': 'driver_start_failed', 'context_setup': 'context_setup_failed',
-            'axe': 'axe_failed', 'report_write': 'report_write_failed',
+            'axe': 'axe_failed', 'report_emit': 'report_emit_failed',
             'report_read': 'report_read_failed', 'process_spawn': 'process_spawn_failed',
             'cleanup': 'cleanup_failed'}.get(stage, 'unexpected_failure')
 

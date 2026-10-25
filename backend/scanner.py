@@ -24,8 +24,7 @@ def load_dependencies():
         sync_playwright, Axe, PlaywrightTimeoutError = factory, axe, timeout
 
 
-def run_robust_scan(target_url, github_owner='', github_repo='', file_path='',
-                    output_filename='audit.json', proxy_url=None, diagnostic_path=None):
+def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
     if not proxy_url:
         raise ValueError('A guarded scan proxy is required')
     # Keep the proxy exclusion narrow: direct destination DNS remains denied, and all
@@ -78,12 +77,13 @@ def run_robust_scan(target_url, github_owner='', github_repo='', file_path='',
                         browser.close()
                     except Exception:
                         pass  # Parent Job Object/process group teardown remains mandatory.
-        progress('report_write')
-        payload = json.dumps(results.response, indent=2, allow_nan=False)
-        if len(payload.encode('utf-8')) > MAX_CHILD_FILE_BYTES:
-            raise ValueError('Scanner report exceeds the file limit')
-        with open(output_filename, 'w', encoding='utf-8', newline='\n') as stream:
-            stream.write(payload)
+        progress('report_emit')
+        payload = json.dumps(results.response, allow_nan=False, separators=(',', ':')).encode('utf-8')
+        if len(payload) > MAX_CHILD_FILE_BYTES:
+            raise ValueError('Scanner report exceeds the output limit')
+        # The parent consumes this stream with a hard byte cap; no report file is created.
+        sys.stdout.buffer.write(payload)
+        sys.stdout.buffer.flush()
         diagnostics.write(diagnostic_path, diagnostics.record('complete', 'ok'))
     except Exception as error:
         data = diagnostics.record(stage, diagnostics.classify(stage, error), error)
@@ -99,7 +99,6 @@ def main():
     parser.add_argument('--owner', default='')
     parser.add_argument('--repo', default='')
     parser.add_argument('--file', default='')
-    parser.add_argument('--output', default='audit.json')
     parser.add_argument('--proxy', required=True)
     parser.add_argument('--diagnostic')
     args = parser.parse_args()
@@ -109,7 +108,7 @@ def main():
     except (PlatformError, OSError, ValueError) as error:
         diagnostics.write(args.diagnostic, diagnostics.record('bootstrap', 'containment_failed', error))
         return CONTAINMENT_EXIT
-    run_robust_scan(args.url, args.owner, args.repo, args.file, args.output, args.proxy, args.diagnostic)
+    run_robust_scan(args.url, proxy_url=args.proxy, diagnostic_path=args.diagnostic)
     return 0
 
 

@@ -3,7 +3,6 @@ import asyncio
 import json
 import os
 import signal
-import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -73,12 +72,36 @@ def child_diagnostic(path):
     return None
 
 
+async def read_report(process, limit=MAX_REPORT_BYTES):
+    """Drain the child stdout while retaining at most limit+1 bytes.
+
+    Draining matters: stopping at the cap would let a hostile child fill the pipe
+    and deadlock both processes. The retained prefix is enough to reject oversize
+    reports without buffering unbounded output.
+    """
+    if scanner_platform.is_windows():
+        return await process.read_stdout(limit)
+    stream = process.stdout
+    if stream is None:
+        return b'', False
+    chunks, retained, overflow = [], 0, False
+    while True:
+        chunk = await stream.read(65536)
+        if not chunk:
+            break
+        if retained < limit + 1:
+            keep = chunk[:limit + 1 - retained]
+            chunks.append(keep)
+            retained += len(keep)
+            overflow = overflow or retained > limit
+    return b''.join(chunks), overflow
+
+
 class ScannerRunner:
     async def __call__(self, url):
         temporary = tempfile.TemporaryDirectory(prefix='accesspilot-scan-')
         work = temporary.name
         try:
-            output = Path(work) / 'audit.json'
             diagnostic_path = Path(work) / 'scanner-diagnostic.json'
             stage = 'bootstrap'
             # Strict per-platform allowlist; never copy application credentials.
@@ -92,7 +115,7 @@ class ScannerRunner:
                 async with asyncio.timeout(SCAN_TIMEOUT):
                     async with PublicScanProxy() as proxy:
                         args = [sys.executable, str(Path(__file__).with_name('scanner.py')),
-                                '--url', url, '--output', str(output), '--proxy', proxy.url,
+                                '--url', url, '--proxy', proxy.url,
                                 '--diagnostic', str(diagnostic_path)]
                         stage = 'process_spawn'
                         if scanner_platform.is_windows():
@@ -100,8 +123,15 @@ class ScannerRunner:
                         else:
                             process = await asyncio.create_subprocess_exec(*args,
                                 cwd=work, env=env, start_new_session=True,
-                                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                        code = await process.wait()
+                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                        read_task = asyncio.create_task(read_report(process))
+                        try:
+                            code = await process.wait()
+                            raw, overflow = await read_task
+                        except BaseException:
+                            read_task.cancel()
+                            await asyncio.gather(read_task, return_exceptions=True)
+                            raise
                         data = child_diagnostic(diagnostic_path)
                         if code != 0:
                             if not data or data['reason'] in ('running', 'ok'):
@@ -116,14 +146,12 @@ class ScannerRunner:
                         if code != 0:
                             raise ScanFailure(diagnostics.API_ERRORS.get(data['reason'], 'scanner_failed'))
                 stage = 'report_read'
-                with scanner_platform.open_report(output) as stream:
-                    info = os.fstat(stream.fileno())
-                    if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_REPORT_BYTES:
-                        raise ScanFailure('invalid_report')
-                    raw = stream.read(MAX_REPORT_BYTES + 1)
-                if len(raw) > MAX_REPORT_BYTES:
+                if overflow or not raw or len(raw) > MAX_REPORT_BYTES:
                     raise ScanFailure('invalid_report')
-                return json.loads(raw)
+                try:
+                    return json.loads(raw)
+                except (ValueError, TypeError):
+                    raise ScanFailure('invalid_report') from None
             except TimeoutError:
                 data = child_diagnostic(diagnostic_path)
                 diagnostics.log(diagnostics.record(data['stage'] if data else stage, 'scan_timeout'))

@@ -31,7 +31,9 @@ GITHUB_CLIENT_SECRET, GITHUB_APP_SLUG, and GITHUB_PRIVATE_KEY_PATH to your exist
 private key's absolute Windows path. Never put credentials in chat, screenshots,
 frontend/.env, version control or agent prompts. Also set N8N_WEBHOOK_URL to the
 active workflow's production HTTPS webhook and N8N_WEBHOOK_SECRET to the existing
-header secret checked by that workflow (`X-AccessPilot-Secret`).
+header secret checked by that workflow (`X-AccessPilot-Secret`). Set MONGO_URI to a
+MongoDB Atlas SRV connection string for a dedicated database user, and keep
+MONGO_DATABASE/MONGO_SCAN_COLLECTION at their defaults unless you need separate names.
 
 Keep these local settings:
 

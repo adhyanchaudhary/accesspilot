@@ -84,7 +84,7 @@ if (!(Test-Path frontend\.env)) { Copy-Item frontend\.env.example frontend\.env 
 npm --prefix frontend ci
 ```
 
-Edit `backend/.env` with your GitHub App ID, Client ID, Client Secret, App slug, private-key path, n8n production webhook URL, and webhook authentication secret. Use the existing GitHub App; no personal access token is needed.
+Edit `backend/.env` with your GitHub App ID, Client ID, Client Secret, App slug, private-key path, n8n production webhook URL, webhook authentication secret, and MongoDB Atlas connection string (`MONGO_URI`). Use the existing GitHub App; no personal access token is needed.
 
 Keep local origins consistent:
 
@@ -93,6 +93,9 @@ Keep local origins consistent:
 FRONTEND_ORIGIN=http://localhost:3000
 GITHUB_CALLBACK_URL=http://localhost:8000/auth/github/callback
 COOKIE_SECURE=false
+MONGO_URI=mongodb+srv://accesspilot:<password>@cluster.example.mongodb.net/?retryWrites=true&w=majority
+MONGO_DATABASE=accesspilot
+MONGO_SCAN_COLLECTION=scan_results
 ```
 
 ```dotenv
@@ -176,7 +179,7 @@ Automated tests never create real GitHub commits or PRs. Live Windows Chromium s
 Code previews are captured for **new** remediation jobs only. Restart both services
 after updating, then submit a fresh audit. No n8n workflow changes are needed.
 
-- Sessions and jobs live in memory. Restarting the backend loses them; jobs expire within one hour or earlier with their authorization. No persistent audit history is provided.
+- Sessions and in-flight jobs live in memory. Restarting the backend loses job status; jobs expire within one hour or earlier with their authorization. Completed scan documents are persisted in MongoDB Atlas when `MONGO_URI` is configured.
 - `submitted` means n8n accepted the audit, **not** that remediation completed. Only a confirmed backend result produces a PR link.
 - There is no completion callback for n8n failures before remediation or no-change outcomes. Inspect the n8n execution if the UI keeps waiting.
 - Remediation accepts a bounded changeset of existing permitted frontend files. It rejects protected paths, stale bases, empty changes, and repository overrides.

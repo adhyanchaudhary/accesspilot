@@ -160,7 +160,7 @@ def test_queue_and_concurrency_are_bounded(scan_app, axe_report, settings):
         assert peak == 1 and len(upstream.jobs) == 2
 
 
-def test_scanner_still_writes_full_axe_report(tmp_path, axe_report, monkeypatch):
+def test_scanner_streams_full_axe_report(capsysbinary, axe_report, monkeypatch):
     from types import SimpleNamespace
     from backend import scanner
     from unittest.mock import MagicMock
@@ -173,9 +173,8 @@ def test_scanner_still_writes_full_axe_report(tmp_path, axe_report, monkeypatch)
     axe = MagicMock()
     axe.run.return_value = SimpleNamespace(response=axe_report)
     monkeypatch.setattr(scanner, 'Axe', lambda: axe)
-    output = tmp_path / 'audit.json'
-    scanner.run_robust_scan('https://example.com', output_filename=str(output), proxy_url='http://127.0.0.1:1234')
-    assert json.loads(output.read_text())['violations'] == axe_report['violations']
+    scanner.run_robust_scan('https://example.com', proxy_url='http://127.0.0.1:1234')
+    assert json.loads(capsysbinary.readouterr().out)['violations'] == axe_report['violations']
     options = playwright.chromium.launch.call_args.kwargs
     assert options['chromium_sandbox'] is True
     assert options['proxy']['bypass'] == '<-loopback>'
@@ -206,9 +205,17 @@ def test_subprocess_adapter_isolates_environment_and_kills_process_group(monkeyp
         async def __aexit__(self, *args):
             pass
     monkeypatch.setattr('backend.audit_scans.PublicScanProxy', Proxy)
+    class Stream:
+        def __init__(self, data):
+            self.data = data
+        async def read(self, size):
+            data, self.data = self.data[:size], self.data[size:]
+            return data
     class Process:
         pid = 123456789
         calls = 0
+        def __init__(self):
+            self.stdout = Stream(json.dumps(axe_report).encode() if result == 'success' else b'')
         async def wait(self):
             self.calls += 1
             if result == 'timeout' and self.calls == 1:
@@ -216,8 +223,6 @@ def test_subprocess_adapter_isolates_environment_and_kills_process_group(monkeyp
             return 1 if result == 'nonzero' else 0
     async def create(*args, **kwargs):
         captured.update(args=args, **kwargs)
-        if result == 'success':
-            Path(args[args.index('--output')+1]).write_text(json.dumps(axe_report))
         return Process()
     monkeypatch.setattr('backend.audit_scans.asyncio.create_subprocess_exec', create)
     async def run():
@@ -230,4 +235,4 @@ def test_subprocess_adapter_isolates_environment_and_kills_process_group(monkeyp
     assert 'GITHUB_PRIVATE_KEY' not in captured['env'] and 'N8N_WEBHOOK_SECRET' not in captured['env']
     assert captured['start_new_session'] is True
     assert killed == [123456789]
-    assert not Path(captured['cwd']).exists()  # private audit.json and browser cache removed
+    assert not Path(captured['cwd']).exists()  # private workspace and browser cache removed

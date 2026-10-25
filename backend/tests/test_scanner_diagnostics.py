@@ -18,7 +18,7 @@ SECRET = 'TOKEN-THAT-MUST-NOT-BE-LOGGED'
     ('dependencies', 'dependency_missing'), ('driver_start', 'driver_start_failed'),
     ('browser_launch', 'browser_missing'), ('context_setup', 'context_setup_failed'),
     ('navigation', 'proxy_connection_failed'), ('axe', 'axe_failed'),
-    ('report_write', 'report_write_failed')])
+    ('report_emit', 'report_emit_failed')])
 def test_stage_failures_preserve_safe_diagnostic_without_raw_details(tmp_path, axe_report, monkeypatch, caplog, stage, reason):
     context, browser, playwright, manager, axe = (MagicMock() for _ in range(5))
     manager.__enter__.return_value = playwright
@@ -48,8 +48,7 @@ def test_stage_failures_preserve_safe_diagnostic_without_raw_details(tmp_path, a
     diagnostic = tmp_path / 'diagnostic.json'
     with pytest.raises(SystemExit) as error:
         scanner.run_robust_scan('https://example.com/?token='+SECRET,
-            output_filename=str(tmp_path / 'audit.json'), proxy_url='http://127.0.0.1:12345',
-            diagnostic_path=str(diagnostic))
+            proxy_url='http://127.0.0.1:12345', diagnostic_path=str(diagnostic))
     assert error.value.code == 1
     result = json.loads(diagnostic.read_text())
     assert result['stage'] == stage and result['reason'] == reason
@@ -98,6 +97,8 @@ def test_child_dependency_failure_is_logged_by_parent_without_publishing_details
         closed = False
         async def wait(self):
             return 1
+        async def read_stdout(self, limit):
+            return b'', False
         async def close(self):
             self.closed = True
     process = Process()
