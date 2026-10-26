@@ -1,0 +1,20 @@
+# Only backend application sources enter the build context.
+**
+!backend/
+!backend/**
+!Dockerfile
+!.dockerignore
+backend/tests/
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/__pycache__/
+**/*.py[cod]
+**/.venv/
+**/.cache/
+**/.pytest_cache/
+**/audit.json
+**/scan_results.json

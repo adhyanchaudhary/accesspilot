@@ -6,6 +6,9 @@ AccessPilot connects a React frontend, an axe-core browser scanner, and an AI re
 
 This is a local-development prototype. Automated checks use mocked integrations; they do not establish that your GitHub, Windows browser, n8n, Gemini, or tunnel configuration works. Follow the [manual end-to-end checklist](LOCAL_E2E_TEST.md) to verify your setup.
 
+For a hosted backend trial, see [Render Docker setup](DEPLOY_RENDER.md). Chromium
+sandbox support and free-tier memory must be verified with a real scan before use.
+
 ## Features
 
 - GitHub App OAuth with HTTP-only sessions and CSRF protection.

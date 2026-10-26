@@ -795,3 +795,9 @@ repository-secret detection. Generic protected-file labels avoid exposing those 
 A limited preview is clearly labeled and the confirmed PR remains reviewable on GitHub.
 Source snapshots expire with in-memory jobs and disappear on backend restart. They
 are not written to disk, logs, browser storage, PR bodies or ordinary status responses.
+
+## Render container deployment
+
+See [the Render deployment guide](../DEPLOY_RENDER.md) for the root Dockerfile,
+environment settings, single-worker launcher (`python -m backend.serve`), and
+required sandbox/memory acceptance checks. Local `backend.run` behavior is unchanged.

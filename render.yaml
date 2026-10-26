@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: accesspilot-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: GITHUB_CALLBACK_URL
+        sync: false
+      - key: GITHUB_APP_ID
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_APP_SLUG
+        sync: false
+      - key: GITHUB_PRIVATE_KEY
+        sync: false
+      - key: N8N_WEBHOOK_URL
+        sync: false
+      - key: N8N_WEBHOOK_SECRET
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: MONGO_DATABASE
+        value: accesspilot
+      - key: MONGO_SCAN_COLLECTION
+        value: scan_results
+      - key: TUNNEL_MODE
+        value: "true"
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: SCAN_CONCURRENCY
+        value: "1"
+      - key: SCAN_QUEUE_SIZE
+        value: "5"
