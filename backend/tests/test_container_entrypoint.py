@@ -39,3 +39,6 @@ def test_public_launcher_forces_secure_cookies_and_disables_docs(monkeypatch):
     assert settings.cookie_secure is True
     assert settings.tunnel_mode is True
     assert observed['workers'] == 1
+    assert observed['log_level'] == 'info'
+    assert observed['access_log'] is False
+    assert observed['proxy_headers'] is False

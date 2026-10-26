@@ -20,7 +20,9 @@ def main():
     settings = Settings.from_env()
     settings.tunnel_mode = True  # Public container always disables API documentation.
     settings.cookie_secure = True
-    uvicorn.run(create_app(settings), **server_options())
+    options = server_options()
+    options['log_level'] = 'info'
+    uvicorn.run(create_app(settings), **options)
 
 
 if __name__ == '__main__':
