@@ -8,6 +8,37 @@ from pathlib import Path
 
 MEMORY_FIELDS = {'current_bytes', 'limit_bytes', 'peak_bytes', 'oom_events',
                  'oom_kills', 'limit_hits'}
+BROWSER_SIGNALS = {'SIGABRT', 'SIGBUS', 'SIGFPE', 'SIGILL', 'SIGINT', 'SIGKILL',
+                   'SIGSEGV', 'SIGTERM', 'SIGTRAP', 'SIGXCPU', 'SIGXFSZ'}
+BROWSER_FAILURES = {'file_size_limit', 'disk_full', 'shared_memory_failed',
+                    'sandbox_failed', 'thread_creation_failed'}
+
+
+def browser_exit_fields(raw):
+    """Reduce bounded driver stderr to fixed signatures. Never return raw text."""
+    text = raw.decode('utf-8', errors='replace')
+    result = {}
+    matches = re.findall(r'process did exit: exitCode=(null|-?\d{1,10}), signal=(null|SIG[A-Z]+)', text)
+    if matches:
+        code, signal = matches[-1]
+        if code != 'null' and -(2**31) <= int(code) < 2**31:
+            result['browser_exit_code'] = int(code)
+        if signal in BROWSER_SIGNALS:
+            result['browser_signal'] = signal
+    signatures = []
+    lower = text.lower()
+    for field, patterns in {
+        'file_size_limit': ('file size limit exceeded',),
+        'disk_full': ('no space left on device',),
+        'shared_memory_failed': ('creating shared memory', 'unable to access /dev/shm'),
+        'sandbox_failed': ('no usable sandbox', 'failed to move to new namespace'),
+        'thread_creation_failed': ('pthread_create: resource temporarily unavailable',),
+    }.items():
+        if any(pattern in lower for pattern in patterns):
+            signatures.append(field)
+    if signatures:
+        result['browser_failure_signatures'] = signatures
+    return result
 
 
 def memory_snapshot(root=Path('/sys/fs/cgroup')):
@@ -159,6 +190,11 @@ def validate(data):
             or data['stage'] not in STAGES or data['reason'] not in REASONS):
         return None
     result = {'stage': data['stage'], 'reason': data['reason']}
+    if isinstance(data.get('browser_signal'), str) and data['browser_signal'] in BROWSER_SIGNALS:
+        result['browser_signal'] = data['browser_signal']
+    if isinstance(data.get('browser_failure_signatures'), list):
+        result['browser_failure_signatures'] = [value for value in BROWSER_FAILURES
+            if value in data['browser_failure_signatures']]
     for field in ('page_crashed', 'page_closed', 'browser_disconnected'):
         if type(data.get(field)) is bool:
             result[field] = data[field]

@@ -97,6 +97,22 @@ async def read_report(process, limit=MAX_REPORT_BYTES):
     return b''.join(chunks), overflow
 
 
+async def read_browser_exit(process):
+    # Drain even when noisy; keep only a 64 KiB tail in memory, never on disk.
+    stream = getattr(process, 'stderr', None)
+    if stream is None:
+        return {}
+    tail = bytearray()
+    while True:
+        chunk = await stream.read(8192)
+        if not chunk:
+            break
+        tail.extend(chunk)
+        if len(tail) > 65536:
+            del tail[:-65536]
+    return diagnostics.browser_exit_fields(bytes(tail))
+
+
 class ScannerRunner:
     async def __call__(self, url):
         temporary = tempfile.TemporaryDirectory(prefix='accesspilot-scan-')
@@ -122,16 +138,22 @@ class ScannerRunner:
                         if scanner_platform.is_windows():
                             process = await scanner_platform.spawn_windows(args, work, env)
                         else:
+                            # Fixed browser lifecycle debug namespace only. Its raw output
+                            # is privately drained and reduced to allowlisted exit fields.
+                            env['DEBUG'] = 'pw:browser'
                             process = await asyncio.create_subprocess_exec(*args,
                                 cwd=work, env=env, start_new_session=True,
-                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
                         read_task = asyncio.create_task(read_report(process))
+                        exit_task = asyncio.create_task(read_browser_exit(process))
                         try:
                             code = await process.wait()
                             raw, overflow = await read_task
+                            browser_exit = await exit_task
                         except BaseException:
                             read_task.cancel()
-                            await asyncio.gather(read_task, return_exceptions=True)
+                            exit_task.cancel()
+                            await asyncio.gather(read_task, exit_task, return_exceptions=True)
                             raise
                         data = child_diagnostic(diagnostic_path)
                         if code != 0:
@@ -140,6 +162,7 @@ class ScannerRunner:
                             elif data['reason'] in ('running', 'ok'):
                                 data['reason'] = 'process_failed'
                             data['return_code'] = code
+                            data.update(browser_exit)
                             data['proxy_failures'] = getattr(proxy, 'failures', {})
                             diagnostics.log(diagnostics.with_memory(data, memory_before))
                         if code == scanner_platform.CONTAINMENT_EXIT:

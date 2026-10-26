@@ -131,3 +131,11 @@ unavailable counters, not zero usage. Peak usage is a cgroup lifetime peak, not 
 isolated per-scan measurement. Intentional browser cleanup is excluded from crash
 flags. No page content, exception messages, credentials, or target URLs are logged.
 If the whole service is killed, it may not get a chance to emit its final log.
+
+On POSIX hosts, scanner stderr is drained privately with a 64 KiB in-memory tail.
+Only a fixed Playwright browser exit code/signal and known failure categories can
+reach `scanner_diagnostic`. Raw stderr, command lines, URLs and exception text are
+never logged or persisted. `SIGXFSZ` points to the existing per-file write limit;
+`SIGXCPU` points to the CPU limit. Other signals such as `SIGTRAP` require further
+investigation and do not by themselves establish a sandbox or memory failure.
+Windows scanner process management is unchanged.

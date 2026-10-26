@@ -202,3 +202,53 @@ def test_browser_events_ignore_intentional_cleanup(tmp_path, monkeypatch, crash_
                          ('disconnected', 'browser_disconnected')]:
         assert result[field] is (crash_event == event)
     assert SECRET not in path.read_text()
+
+
+@pytest.mark.parametrize('signal', ['SIGTRAP', 'SIGXFSZ', 'SIGXCPU', 'SIGKILL'])
+def test_browser_exit_signal_is_allowlisted_without_raw_logs(signal, caplog):
+    raw = (SECRET + '\n pw:browser [pid=123] <process did exit: exitCode=null, signal=' + signal + '>').encode()
+    fields = diagnostics.browser_exit_fields(raw)
+    assert fields == {'browser_signal': signal}
+    diagnostics.log({'stage': 'axe', 'reason': 'axe_failed', **fields})
+    assert signal in caplog.text
+    assert SECRET not in caplog.text
+
+
+def test_browser_exit_code_and_fixed_error_signatures(caplog):
+    fields = diagnostics.browser_exit_fields((SECRET +
+        '\nFile size limit exceeded\nNo space left on device\n'
+        'pw:browser <process did exit: exitCode=7, signal=null>').encode())
+    assert fields['browser_exit_code'] == 7
+    assert set(fields['browser_failure_signatures']) == {'file_size_limit', 'disk_full'}
+    diagnostics.log({'stage': 'axe', 'reason': 'axe_failed', **fields,
+                     'raw_stderr': SECRET})
+    assert SECRET not in caplog.text
+
+
+def test_unknown_browser_signals_and_signatures_are_discarded():
+    assert diagnostics.browser_exit_fields(b'process did exit: exitCode=null, signal=SIGSECRET') == {}
+    data = diagnostics.validate({'stage': 'axe', 'reason': 'axe_failed',
+        'browser_signal': SECRET, 'browser_failure_signatures': [SECRET, 'disk_full']})
+    assert 'browser_signal' not in data
+    assert data['browser_failure_signatures'] == ['disk_full']
+
+
+def test_browser_stderr_is_drained_but_only_safe_tail_fields_returned():
+    from backend.audit_scans import read_browser_exit
+
+    class Stream:
+        def __init__(self):
+            self.remaining = 100
+        async def read(self, limit):
+            self.remaining -= 1
+            if self.remaining > 0:
+                return (SECRET.encode() * 500)[:limit]
+            if self.remaining == 0:
+                return b'pw:browser <process did exit: exitCode=null, signal=SIGTRAP>'
+            return b''
+
+    stream = Stream()
+    fields = asyncio.run(read_browser_exit(SimpleNamespace(stderr=stream)))
+    assert stream.remaining == -1
+    assert fields == {'browser_signal': 'SIGTRAP'}
+    assert asyncio.run(read_browser_exit(SimpleNamespace())) == {}
