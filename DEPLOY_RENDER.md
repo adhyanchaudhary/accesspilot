@@ -60,10 +60,13 @@ After deploying, save the assigned backend HTTPS URL in n8n's AccessPilot Config
 Keep the existing job-scoped Authorization header on every service request.
 Set explicit HTTP timeouts, and unpin old Webhook data before submitting a job.
 
-The Netlify same-origin /api proxy still needs to be implemented using a build
-script that reads BACKEND_URL from Netlify environment settings. Set frontend
-VITE_API_BASE_URL=/api. Netlify does not substitute $BACKEND_URL in toml redirects.
-Do not switch directly to cross-site browser cookies as a workaround.
+Set BACKEND_URL to the Render HTTPS origin in Netlify environment settings (Builds
+scope), and set VITE_API_BASE_URL=/api. Do not commit the URL. The root netlify.toml
+runs npm run build:netlify; frontend/scripts/netlify-redirects.mjs then generates
+dist/_redirects with the API proxy before the SPA fallback. A missing or invalid
+BACKEND_URL intentionally fails the Netlify build. Ordinary npm run build and local
+development do not require this variable. Netlify does not substitute $BACKEND_URL
+in toml redirects. Do not switch directly to cross-site cookies as a workaround.
 
 Once the proxy is configured, set the GitHub App callback to the same
 GITHUB_CALLBACK_URL entered above. Test that redirects and Set-Cookie headers
