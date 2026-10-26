@@ -101,6 +101,7 @@ class ScannerRunner:
     async def __call__(self, url):
         temporary = tempfile.TemporaryDirectory(prefix='accesspilot-scan-')
         work = temporary.name
+        memory_before = diagnostics.memory_snapshot()
         try:
             diagnostic_path = Path(work) / 'scanner-diagnostic.json'
             stage = 'bootstrap'
@@ -134,11 +135,13 @@ class ScannerRunner:
                             raise
                         data = child_diagnostic(diagnostic_path)
                         if code != 0:
-                            if not data or data['reason'] in ('running', 'ok'):
-                                data = diagnostics.record(data['stage'] if data else 'bootstrap', 'process_failed')
+                            if not data:
+                                data = diagnostics.record('bootstrap', 'process_failed')
+                            elif data['reason'] in ('running', 'ok'):
+                                data['reason'] = 'process_failed'
                             data['return_code'] = code
                             data['proxy_failures'] = getattr(proxy, 'failures', {})
-                            diagnostics.log(data)
+                            diagnostics.log(diagnostics.with_memory(data, memory_before))
                         if code == scanner_platform.CONTAINMENT_EXIT:
                             raise ScanFailure('scanner_containment_failed')
                         if code == scanner_platform.TIMEOUT_EXIT:
@@ -154,7 +157,8 @@ class ScannerRunner:
                     raise ScanFailure('invalid_report') from None
             except TimeoutError:
                 data = child_diagnostic(diagnostic_path)
-                diagnostics.log(diagnostics.record(data['stage'] if data else stage, 'scan_timeout'))
+                diagnostics.log(diagnostics.with_memory(
+                    diagnostics.record(data['stage'] if data else stage, 'scan_timeout'), memory_before))
                 raise ScanFailure('scan_timed_out') from None
             except scanner_platform.PlatformError as error:
                 diagnostics.log(diagnostics.record(stage, 'resource_limit', error))

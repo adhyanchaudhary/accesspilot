@@ -34,6 +34,15 @@ def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
         raise ValueError('The scan proxy must be a loopback IPv4 listener')
     stage = 'dependencies'
     browser = None
+    closing = False
+    events = {'page_crashed': False, 'page_closed': False, 'browser_disconnected': False}
+
+    def event(name):
+        if not closing:
+            events[name] = True
+            data = diagnostics.record(stage, 'running')
+            data.update(events)
+            diagnostics.write(diagnostic_path, data)
 
     def progress(next_stage):
         nonlocal stage
@@ -52,6 +61,7 @@ def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
                     proxy={'server': proxy_url, 'bypass': '<-loopback>'},
                     args=['--disable-quic', '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
                           '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1'])
+                browser.on('disconnected', lambda *_: event('browser_disconnected'))
                 progress('context_setup')
                 context = browser.new_context(service_workers='block', accept_downloads=False)
 
@@ -64,6 +74,8 @@ def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
                 context.route('**/*', guard)
                 context.route_web_socket('**/*', lambda ws: ws.close())
                 page = context.new_page()
+                page.on('crash', lambda *_: event('page_crashed'))
+                page.on('close', lambda *_: event('page_closed'))
                 progress('navigation')
                 page.goto(target_url, timeout=30000, wait_until='domcontentloaded')
                 progress('axe')
@@ -71,6 +83,7 @@ def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
                 if not hasattr(results, 'response') or not isinstance(results.response, dict):
                     raise ValueError('Invalid axe result structure')
             finally:
+                closing = True  # Intentional cleanup must not count as a crash/disconnect.
                 if browser:
                     # Do not let a secondary close error hide the primary failure stage.
                     try:
@@ -87,6 +100,7 @@ def run_robust_scan(target_url, proxy_url=None, diagnostic_path=None):
         diagnostics.write(diagnostic_path, diagnostics.record('complete', 'ok'))
     except Exception as error:
         data = diagnostics.record(stage, diagnostics.classify(stage, error), error)
+        data.update(events)
         diagnostics.write(diagnostic_path, data)
         if not diagnostic_path:
             diagnostics.log(data)

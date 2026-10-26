@@ -90,6 +90,7 @@ def test_child_dependency_failure_is_logged_by_parent_without_publishing_details
         async def __aexit__(self, *args):
             pass
     monkeypatch.setattr('backend.audit_scans.PublicScanProxy', Proxy)
+    monkeypatch.setattr(diagnostics, 'memory_snapshot', lambda: {'limit_bytes': 536870912, 'oom_kills': 0})
     monkeypatch.setattr(scanner_platform, 'is_windows', lambda: True)
     monkeypatch.setenv('SystemRoot', str(tmp_path / 'Windows'))
     monkeypatch.setattr(scanner_platform, 'open_windows_report', lambda path: __import__('os').open(path, __import__('os').O_RDONLY))
@@ -115,6 +116,7 @@ def test_child_dependency_failure_is_logged_by_parent_without_publishing_details
     asyncio.run(run())
     assert process.closed
     assert 'dependencies' in caplog.text and 'policy_denied' in caplog.text
+    assert 'memory_before' in caplog.text and '536870912' in caplog.text
     assert SECRET not in caplog.text
 
 
@@ -128,3 +130,75 @@ def test_windows_cleanup_handles_share_locks_and_nonempty_directory(monkeypatch,
     temporary.cleanup.side_effect = [error, None]
     asyncio.run(scanner_platform.cleanup_workspace(temporary))
     assert temporary.cleanup.call_count == 2
+
+
+def test_memory_snapshot_reads_only_numeric_counters(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    (tmp_path / 'memory.current').write_text('123456\n')
+    (tmp_path / 'memory.max').write_text('536870912\n')
+    (tmp_path / 'memory.peak').write_text('500000000\n')
+    (tmp_path / 'memory.events').write_text('low 0\noom 3\noom_kill 2\nsecret 99\n')
+    assert diagnostics.memory_snapshot(tmp_path) == {
+        'current_bytes': 123456, 'limit_bytes': 536870912,
+        'peak_bytes': 500000000, 'oom_events': 3, 'oom_kills': 2}
+
+
+def test_unavailable_memory_is_unknown_not_zero(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    assert diagnostics.memory_snapshot(tmp_path) == {}
+    (tmp_path / 'memory.max').write_text('max')
+    (tmp_path / 'memory.current').write_text(SECRET)
+    assert diagnostics.memory_snapshot(tmp_path) == {}
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    assert diagnostics.memory_snapshot(tmp_path) == {}
+
+
+def test_v1_memory_counters_and_unlimited_sentinel(tmp_path, monkeypatch):
+    monkeypatch.setattr(sys, 'platform', 'linux')
+    directory = tmp_path / 'memory'
+    directory.mkdir()
+    (directory / 'memory.usage_in_bytes').write_text('100')
+    (directory / 'memory.limit_in_bytes').write_text(str(2**63 - 4096))
+    (directory / 'memory.failcnt').write_text('3')
+    assert diagnostics.memory_snapshot(tmp_path) == {'current_bytes': 100, 'limit_hits': 3}
+
+
+def test_memory_and_event_fields_cannot_smuggle_strings(caplog):
+    diagnostics.log({'stage': 'axe', 'reason': 'axe_failed',
+        'memory_before': {'current_bytes': SECRET, SECRET: 10, 'limit_bytes': True},
+        'memory_after': {'oom_kills': 1, 'peak_bytes': -1},
+        'page_crashed': True, 'browser_disconnected': SECRET})
+    assert SECRET not in caplog.text
+    assert '"oom_kills": 1' in caplog.text
+    assert '"page_crashed": true' in caplog.text
+
+
+@pytest.mark.parametrize('crash_event', [None, 'crash', 'close', 'disconnected'])
+def test_browser_events_ignore_intentional_cleanup(tmp_path, monkeypatch, crash_event):
+    context, browser, playwright, manager, axe, page = (MagicMock() for _ in range(6))
+    manager.__enter__.return_value = playwright
+    playwright.chromium.launch.return_value = browser
+    browser.new_context.return_value = context
+    context.new_page.return_value = page
+    callbacks = {}
+    browser.on.side_effect = lambda name, callback: callbacks.update({name: callback})
+    page.on.side_effect = lambda name, callback: callbacks.update({name: callback})
+    browser.close.side_effect = lambda: callbacks['disconnected'](browser)
+
+    def fail(_page):
+        if crash_event:
+            callbacks[crash_event]()
+        raise RuntimeError(SECRET)
+
+    axe.run.side_effect = fail
+    monkeypatch.setattr(scanner, 'sync_playwright', lambda: manager)
+    monkeypatch.setattr(scanner, 'Axe', lambda: axe)
+    path = tmp_path / 'diagnostic.json'
+    with pytest.raises(SystemExit):
+        scanner.run_robust_scan('https://example.com', proxy_url='http://127.0.0.1:12345',
+                               diagnostic_path=str(path))
+    result = json.loads(path.read_text())
+    for event, field in [('crash', 'page_crashed'), ('close', 'page_closed'),
+                         ('disconnected', 'browser_disconnected')]:
+        assert result[field] is (crash_event == event)
+    assert SECRET not in path.read_text()

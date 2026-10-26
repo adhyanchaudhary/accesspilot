@@ -4,6 +4,60 @@ import json
 import logging
 import re
 import sys
+from pathlib import Path
+
+MEMORY_FIELDS = {'current_bytes', 'limit_bytes', 'peak_bytes', 'oom_events',
+                 'oom_kills', 'limit_hits'}
+
+
+def memory_snapshot(root=Path('/sys/fs/cgroup')):
+    """Best-effort container counters only; never read or log process environments.
+
+    The cgroup namespace may hide these files. Missing counters mean unknown,
+    not zero. Counters can cover other processes in the same container.
+    """
+    if sys.platform != 'linux':
+        return {}
+    result = {}
+
+    def number(path):
+        try:
+            with path.open('r', encoding='ascii') as stream:
+                text = stream.read(128).strip()
+            value = int(text)
+            return value if 0 <= value < 2**60 else None
+        except (OSError, ValueError, UnicodeError):
+            return None
+
+    for field, names in {
+        'current_bytes': ('memory.current', 'memory/memory.usage_in_bytes'),
+        'limit_bytes': ('memory.max', 'memory/memory.limit_in_bytes'),
+        'peak_bytes': ('memory.peak', 'memory/memory.max_usage_in_bytes'),
+        'limit_hits': ('memory/memory.failcnt',),
+    }.items():
+        for name in names:
+            value = number(root / name)
+            if value is not None:
+                result[field] = value
+                break
+    try:
+        with (root / 'memory.events').open('r', encoding='ascii') as stream:
+            lines = stream.read(1024).splitlines()
+        for line in lines:
+            parts = line.split()
+            if len(parts) == 2 and parts[0] in ('oom', 'oom_kill'):
+                value = int(parts[1])
+                if 0 <= value < 2**60:
+                    result['oom_events' if parts[0] == 'oom' else 'oom_kills'] = value
+    except (OSError, ValueError, UnicodeError):
+        pass
+    return result
+
+
+def with_memory(data, before):
+    data['memory_before'] = before
+    data['memory_after'] = memory_snapshot()
+    return data
 
 STAGES = {'bootstrap', 'dependencies', 'driver_start', 'browser_launch', 'context_setup',
           'navigation', 'axe', 'report_emit', 'report_read', 'process_spawn', 'cleanup', 'complete'}
@@ -105,6 +159,14 @@ def validate(data):
             or data['stage'] not in STAGES or data['reason'] not in REASONS):
         return None
     result = {'stage': data['stage'], 'reason': data['reason']}
+    for field in ('page_crashed', 'page_closed', 'browser_disconnected'):
+        if type(data.get(field)) is bool:
+            result[field] = data[field]
+    for field in ('memory_before', 'memory_after'):
+        memory = data.get(field)
+        if isinstance(memory, dict):
+            result[field] = {key: value for key, value in memory.items()
+                if key in MEMORY_FIELDS and type(value) is int and 0 <= value < 2**60}
     for field in ('errno', 'winerror', 'return_code', 'browser_exit_code'):
         if type(data.get(field)) is int and -(2**31) <= data[field] <= 2**32 - 1:
             result[field] = data[field]

@@ -118,3 +118,16 @@ HTTPS. Use the unchanged backend.run launcher for ordinary HTTP local developmen
 The host must allow Chromium's non-root sandbox; Docker's default seccomp or host
 user-namespace policy may deny it. A successful local container test does not
 establish compatibility with Render's runtime.
+
+### Scanner crash diagnostics on the free tier
+
+A failed scanner logs only allowlisted `scanner_diagnostic` fields: stage, reason,
+page crash/closure and browser disconnection flags, plus container memory counters
+before and after the scan when the host exposes cgroup files. Memory values are
+bytes. Compare `oom_kills` before and after; an increase means a process in that
+cgroup was OOM-killed, not necessarily proof that Chromium was the victim. A
+`limit_hits` increase alone does not prove an OOM kill. Empty memory objects mean
+unavailable counters, not zero usage. Peak usage is a cgroup lifetime peak, not an
+isolated per-scan measurement. Intentional browser cleanup is excluded from crash
+flags. No page content, exception messages, credentials, or target URLs are logged.
+If the whole service is killed, it may not get a chance to emit its final log.
