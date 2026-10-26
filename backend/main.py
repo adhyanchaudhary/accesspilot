@@ -103,8 +103,11 @@ def create_app(settings=None, transport=None, scanner=None, scan_store=None):
                   redoc_url=None if settings.tunnel_mode else '/redoc',
                   openapi_url=None if settings.tunnel_mode else '/openapi.json')
     if settings.tunnel_mode:
+        allowed_hosts = ['localhost', '127.0.0.1', '*.trycloudflare.com']
+        if settings.render_external_hostname:
+            allowed_hosts.append(settings.render_external_hostname)
         app.add_middleware(TrustedHostMiddleware,
-                           allowed_hosts=['localhost', '127.0.0.1', '*.trycloudflare.com'])
+                           allowed_hosts=allowed_hosts)
     app.state.sessions = ExpiringStore()
     app.state.states = ExpiringStore()
     app.state.jobs = ExpiringStore(limit=1000)

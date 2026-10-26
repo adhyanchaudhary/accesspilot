@@ -46,6 +46,10 @@ PLAYWRIGHT_BROWSERS_PATH with a Windows path: the image installs its own browser
 at /opt/playwright. PORT is provided by Render and is read by backend.serve.
 Secure cookies and disabled API docs are enforced by that launcher. It keeps
 access logging and proxy-header trust disabled, and binds on 0.0.0.0.
+Render automatically supplies RENDER_EXTERNAL_HOSTNAME. The backend adds only
+that exact validated onrender.com hostname to its trusted-host allowlist so
+external /health probes and API requests are accepted. Do not set a wildcard or
+URL in that variable. Other Render services remain untrusted.
 
 Configure Atlas network access for Render's outbound addresses. Without MONGO_URI,
 the backend uses a null scan repository and does not persist scan results.

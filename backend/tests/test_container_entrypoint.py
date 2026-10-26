@@ -1,4 +1,5 @@
 import pytest
+from fastapi.testclient import TestClient
 
 from backend import serve
 from backend.github_auth import Settings
@@ -42,3 +43,39 @@ def test_public_launcher_forces_secure_cookies_and_disables_docs(monkeypatch):
     assert observed['log_level'] == 'info'
     assert observed['access_log'] is False
     assert observed['proxy_headers'] is False
+
+
+def test_render_health_accepts_only_assigned_host(monkeypatch):
+    from backend.main import create_app
+
+    monkeypatch.setenv('RENDER_EXTERNAL_HOSTNAME', 'accesspilot-test.onrender.com')
+    settings = Settings.from_env()
+    settings.tunnel_mode = True
+    settings.mongo_uri = ''
+    app = create_app(settings)
+    with TestClient(app, base_url='https://accesspilot-test.onrender.com') as client:
+        response = client.get('/health')
+        assert response.status_code == 200
+        assert response.json() == {'status': 'ok'}
+        assert response.headers['cache-control'] == 'no-store'
+        assert client.get('/docs').status_code == 404
+        for host in ('another-service.onrender.com', 'evil.example'):
+            assert client.get('/health', headers={'Host': host}).status_code == 400
+        assert client.get('/health', headers={
+            'Host': 'evil.example', 'X-Forwarded-Host': settings.render_external_hostname
+        }).status_code == 400
+
+
+@pytest.mark.parametrize('host', ['*', '*.onrender.com', 'https://app.onrender.com',
+    'app.onrender.com/path', 'app.onrender.com:10000', 'app.onrender.com.evil.example'])
+def test_invalid_render_host_fails_closed(host):
+    with pytest.raises(ValueError, match='RENDER_EXTERNAL_HOSTNAME'):
+        Settings(render_external_hostname=host)
+
+
+def test_tunnel_does_not_implicitly_allow_render_hosts():
+    from backend.main import create_app
+
+    app = create_app(Settings(tunnel_mode=True))
+    with TestClient(app, base_url='https://unconfigured.onrender.com') as client:
+        assert client.get('/health').status_code == 400

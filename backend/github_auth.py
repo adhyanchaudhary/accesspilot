@@ -1,5 +1,6 @@
 """Server-only GitHub App and user authentication helpers."""
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,8 +33,13 @@ class Settings:
     mongo_uri: str = ''
     mongo_database: str = 'accesspilot'
     mongo_collection: str = 'scan_results'
+    render_external_hostname: str = ''
 
     def __post_init__(self):
+        if self.render_external_hostname and not re.fullmatch(
+                r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.onrender\.com',
+                self.render_external_hostname):
+            raise ValueError('RENDER_EXTERNAL_HOSTNAME must be one exact onrender.com hostname')
         if not 1 <= self.scan_concurrency <= 4 or not 1 <= self.scan_queue_size <= 100:
             raise ValueError('Scan concurrency must be 1..4 and queue size 1..100')
         if self.mongo_uri and not self.mongo_uri.startswith(('mongodb://', 'mongodb+srv://')):
@@ -67,6 +73,7 @@ class Settings:
             mongo_uri=os.getenv('MONGO_URI', '').strip(),
             mongo_database=os.getenv('MONGO_DATABASE', 'accesspilot').strip(),
             mongo_collection=os.getenv('MONGO_SCAN_COLLECTION', 'scan_results').strip(),
+            render_external_hostname=os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip(),
         )
 
 
