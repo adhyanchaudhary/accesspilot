@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { ArrowDown } from "lucide-react";
 import { useStartScan } from "./useStartScan";
 import { useWorkflowReveal } from "./useWorkflowReveal";
 import Image from "./Image";
@@ -63,9 +62,6 @@ export function HowItWorks() {
           <div className={styles.howIntro}>
             <Reveal>
               <span className={styles.kicker}>
-                <span className={styles.kickerIndex} aria-hidden="true">
-                  02
-                </span>
                 How it works
               </span>
               <h2 id="how-title" className={styles.h2}>
@@ -98,11 +94,6 @@ export function HowItWorks() {
                 Start a scan
               </ButtonLink>
             </Reveal>
-            <div className={styles.howReadingGuide} aria-hidden="true">
-              <span className={styles.howReadingCount}>{String(active + 1).padStart(2, "0")} <i>/ 05</i></span>
-              <span>{steps[active].title}</span>
-              <ArrowDown size={15} />
-            </div>
           </div>
 
             <ol ref={listRef} className={styles.timeline} aria-label="Accessibility audit workflow"

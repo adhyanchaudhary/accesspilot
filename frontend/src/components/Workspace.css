@@ -1,39 +1,215 @@
-/* Scoped to authenticated pages; the public landing and connection panel keep their design. */
-.workspace { min-height: 100vh; color-scheme: dark; color: #d8e0ed; background: radial-gradient(ellipse at 15% 0%, #172235, transparent 45%), #0c111b; }
-.workspace > header, .workspace > footer { background: #111925ee; border-color: #283244; }
-.workspace main { min-width: 0; }
-.workspace .card { border-color: #2a3547; background: #151e2b; box-shadow: 0 8px 32px rgb(0 0 0 / 10%); }
-.workspace .input, .workspace [role="group"] button:not([aria-pressed="true"]) { color: #d9e3f1; background-color: #111a28; border-color: #35415a; }
-.workspace .input::placeholder { color: #7e8fa9; }
-.workspace .btn-secondary { color: #d0ddee; border-color: #35415a; background: #1b283c; }
-.workspace .btn-secondary:hover { background: #243650; color: #fff; }
-.workspace .btn-ghost { color: #a7bada; }
-.workspace .btn-ghost:hover { color: #fff; background: #243650; }
-.workspace :is(.text-navy-950, .text-navy-900, .text-navy-800, .text-navy-700) { color: #e3eaf5; }
-.workspace :is(.text-navy-600, .text-navy-500) { color: #a5b5cf; }
-.workspace :is(.text-navy-400, .text-navy-300) { color: #8a9dbb; }
-.workspace :is(.text-brand-700, .text-brand-600, .text-brand-500) { color: #95b9ff; }
-.workspace :is(.border-navy-100, .border-navy-200, .border-brand-100, .border-brand-200) { border-color: #2e3d54; }
-.workspace :is(.bg-white, .bg-navy-50, .bg-navy-100, .bg-brand-50) { background-color: #1b2a40; }
-.workspace [class~="bg-white/70"], .workspace [class~="bg-white/80"] { background-color: #151f30; }
-.workspace [class~="divide-navy-50"] > :not([hidden]) ~ :not([hidden]), .workspace [class~="divide-navy-100"] > :not([hidden]) ~ :not([hidden]) { border-color: #2a364a; }
-.workspace .eyebrow { color: #9cbcff; background: #172b48; border-color: #314b73; }
-.workspace :is(.bg-red-50, .bg-red-100) { background: #38202b; }
-.workspace :is(.text-red-600, .text-red-700, .text-red-800) { color: #ffadb6; }
-.workspace :is(.bg-amber-50, .bg-amber-100) { background: #332a1f; }
-.workspace :is(.text-amber-600, .text-amber-700, .text-amber-800) { color: #f5d08a; }
-.workspace :is(.bg-emerald-50, .bg-emerald-100) { background: #16342e; }
-.workspace :is(.text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #82e2bd; }
-.workspace [class~="bg-emerald-50/60"] { background: #18322e; }
-.workspace :is(.ring-navy-200, .ring-brand-200) { --tw-ring-color: #384d6c; }
-.workspace :is(.ring-emerald-200, .ring-amber-200, .ring-red-200) { --tw-ring-color: #455268; }
-.workspace :focus-visible { --tw-ring-offset-color: #111925; }
-.workspace .skeleton { background: #263650; }
-.workspace .workspace-intro { background: linear-gradient(120deg, #192a46, #152034); }
-.workspace .workspace-intro::before { opacity: .25; }
-.workspace #repository-options { border-color: #35415a; background: #111a28; }
-.workspace #repository-options button[aria-pressed="true"] { background: #233958; color: #b5d0ff; }
-.workspace #repository-options button:hover { background: #263b58; }
-.workspace .changes-viewer { color: #d8dee9; }
+/*
+ * Authenticated workspace theme.
+ * Mirrors the light landing-page palette: soft blue surfaces, deep navy ink,
+ * thin tinted borders and the same layered blue glow.
+ */
 
-.workspace .label { color: #c5d2e5; }
+.workspace {
+  --ws-ink: #071a37;
+  --ws-ink-soft: #17325c;
+  --ws-muted: #536b92;
+  --ws-line: #dfe9f8;
+  --ws-blue: #2563eb;
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  color: var(--ws-ink);
+  color-scheme: light;
+  background:
+    radial-gradient(ellipse 60% 38% at 92% -4%, #e4efff 0, transparent 72%),
+    radial-gradient(ellipse 44% 32% at 0% 42%, #edf4ff 0, transparent 74%),
+    linear-gradient(180deg, #fbfdff 0%, #f7faff 46%, #fbfdff 100%);
+}
+
+.workspace::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(50, 100, 190, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(50, 100, 190, 0.045) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 72%);
+}
+
+.workspace main { min-width: 0; }
+
+.workspace .card {
+  border-color: #e2ebf9;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 12px 32px -20px rgba(16, 45, 95, 0.24);
+}
+
+.workspace .workspace-intro {
+  border-color: #dbe8fa;
+  background:
+    radial-gradient(ellipse 55% 90% at 100% 0%, #e5efff 0, transparent 68%),
+    linear-gradient(135deg, #ffffff 0%, #f6faff 58%, #eef5ff 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 26px 60px -30px rgba(16, 45, 95, 0.28);
+}
+
+.workspace .workspace-intro::before { opacity: .6; }
+
+.workspace .eyebrow {
+  color: #214e9f;
+  border-color: #cfe0fb;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 2px 8px rgba(16, 45, 95, 0.05);
+}
+
+.workspace .label { color: #14315f; }
+
+.workspace .input {
+  border-color: #d6e4f8;
+  background-color: #ffffff;
+  color: #0b1b3a;
+}
+
+.workspace .input::placeholder { color: #94b4e8; }
+
+.workspace #repository-options {
+  border-color: #dbe8fa;
+  background: #ffffff;
+  box-shadow: 0 26px 60px -30px rgba(16, 45, 95, 0.32);
+}
+
+.workspace #repository-options button[aria-pressed="true"] {
+  background: #e9f1ff;
+  color: #1d4ed8;
+}
+
+.workspace #repository-options button:hover { background: #f2f7ff; }
+
+.workspace .skeleton { background-color: #e3edfb; }
+
+.workspace :focus-visible {
+  --tw-ring-offset-color: #ffffff;
+}
+
+/* Floating glass navigation bar, matching the landing header. */
+.workspace-nav-bar {
+  position: relative;
+  border: 1px solid rgba(214, 228, 248, 0.92);
+  border-radius: 20px;
+  background: rgba(252, 254, 255, 0.86);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 18px 44px -38px rgba(8, 26, 58, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.workspace-nav-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.4), transparent 38%);
+}
+
+.workspace-nav-bar > * { position: relative; z-index: 1; }
+
+/* Primary "start audit" action on the dashboard form. */
+.audit-submit {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 214px;
+  padding: 9px 18px 9px 9px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3d7bff 0%, #2563eb 55%, #1d4ed8 100%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 16px 34px -18px rgba(37, 99, 235, 0.85);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.audit-submit::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 18%,
+    rgba(255, 255, 255, 0.28) 46%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 0.65s ease;
+}
+
+.audit-submit > * { position: relative; z-index: 1; }
+
+.audit-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 22px 40px -18px rgba(37, 99, 235, 0.9);
+}
+
+.audit-submit:hover:not(:disabled)::before { transform: translateX(120%); }
+
+.audit-submit:active:not(:disabled) { transform: translateY(0); }
+
+.audit-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: saturate(0.85);
+  box-shadow: none;
+}
+
+.audit-submit-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26);
+}
+
+.audit-submit-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.audit-submit-kicker {
+  color: #d7e5ff;
+  font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.audit-submit-label {
+  margin-top: 3px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.audit-submit-arrow {
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.audit-submit:hover:not(:disabled) .audit-submit-arrow { transform: translateX(3px); }

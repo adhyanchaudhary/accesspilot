@@ -2,7 +2,6 @@ import styles from "./landing.module.css";
 import { Reveal } from "./Reveal";
 
 type SectionHeadingProps = {
-  index: string;
   kicker: string;
   title: string;
   description: string;
@@ -11,7 +10,6 @@ type SectionHeadingProps = {
 };
 
 export function SectionHeading({
-  index,
   kicker,
   title,
   description,
@@ -21,9 +19,6 @@ export function SectionHeading({
   return (
     <Reveal className={`${styles.sectionHead} ${center ? styles.sectionHeadCenter : ""}`.trim()}>
       <span className={styles.kicker}>
-        <span className={styles.kickerIndex} aria-hidden="true">
-          {index}
-        </span>
         {kicker}
       </span>
       <h2 id={id} className={styles.h2}>

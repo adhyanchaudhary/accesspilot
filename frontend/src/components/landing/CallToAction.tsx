@@ -17,9 +17,6 @@ export function CallToAction() {
 
             <div className={styles.ctaCopy}>
               <span className={`${styles.kicker} ${styles.kickerLight}`}>
-                <span className={styles.kickerIndex} aria-hidden="true">
-                  04
-                </span>
                 Start here
               </span>
               <h2 id="cta-title">Ready to build a more accessible web?</h2>

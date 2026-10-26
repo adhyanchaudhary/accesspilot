@@ -295,22 +295,6 @@
   background: linear-gradient(90deg, #2463ea, #86b2ff);
 }
 
-.kickerIndex {
-  display: inline-grid;
-  place-items: center;
-  min-width: 26px;
-  height: 22px;
-  padding: 0 6px;
-  border: 1px solid #d4e3f8;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.9);
-  color: #7a92b6;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
 .h2 {
   margin: 16px 0 16px;
   color: var(--ink);
@@ -693,6 +677,7 @@
   border-radius: 13px;
   color: var(--tone);
   background: var(--tone-soft);
+  line-height: 0;
   transition: transform 0.25s ease;
 }
 
@@ -701,6 +686,7 @@
 }
 
 .proofIcon svg {
+  display: block;
   width: 20px;
   height: 20px;
 }
@@ -713,7 +699,7 @@
   letter-spacing: -0.01em;
 }
 
-.proof span {
+.proof > div > span {
   display: block;
   margin-top: 2px;
   color: #6b81a4;
@@ -1358,12 +1344,6 @@
 
 .kickerLight::before {
   background: linear-gradient(90deg, #7ea9ff, #d1e2ff);
-}
-
-.kickerLight .kickerIndex {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.08);
-  color: #c5d8fa;
 }
 
 .ctaCopy h2 {
@@ -2030,48 +2010,31 @@
 .rolodexCopy ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .rolodexCopy li { font-size: 9px; line-height: 1.3; opacity: .86; }
 .rolodexCopy li::before { content: "+"; margin-right: 6px; font-family: var(--font-mono); opacity: .62; }
-.rolodexCardIndex { display: flex; gap: 5px; margin-top: auto; padding-top: 10px; font: 800 8px/1 var(--font-mono); letter-spacing: .1em; opacity: .58; }
-.rolodexCardIndex i { font-style: normal; font-weight: 500; }
-.rolodexCore { position: absolute; left: 50%; top: 50%; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 82px; height: 82px; border: 1px solid rgba(201,169,246,.38); border-radius: 50%; color: #f2f1ee; background: rgba(35,33,47,.9); box-shadow: 0 0 0 8px rgba(35,33,47,.45), 0 0 42px rgba(124,78,228,.2); transform: translate(-50%,-50%); pointer-events: none; }
-.rolodexCore span { font-size: 24px; font-weight: 800; letter-spacing: -.08em; }
-.rolodexCore i { margin-top: 2px; font: 600 5px/1 var(--font-mono); letter-spacing: .12em; font-style: normal; opacity: .6; }
-.rolodexReadout { position: absolute; left: 23px; bottom: 22px; z-index: 2; display: grid; gap: 5px; color: #6840c8; font-family: var(--font-mono); font-size: 8px; letter-spacing: .12em; pointer-events: none; }
-.rolodexReadout b { color: #23212f; font-size: 20px; letter-spacing: -.04em; }
-.rolodexReadout b i { font-size: 8px; font-weight: 500; font-style: normal; letter-spacing: .1em; opacity: .6; }
 .rolodexInfo { min-width: 0; padding: clamp(18px, 2.8vw, 34px) 0; }
 .rolodexInfoLabel { display: flex; align-items: center; gap: 9px; margin-bottom: 22px; color: #6840c8; font: 800 9px/1.3 var(--font-mono); letter-spacing: .12em; }
-.rolodexInfoLabel > span:last-child { margin-left: auto; color: rgba(35,33,47,.45); }
 .rolodexStatus { width: 7px; height: 7px; border-radius: 50%; background: #f4b84d; box-shadow: 0 0 14px #f4b84d; }
 .rolodexInfo h3 { margin: 0 0 13px; color: #23212f; font-size: clamp(30px, 4vw, 52px); font-weight: 700; line-height: .98; letter-spacing: -.065em; }
-.rolodexInfo > p:not(.rolodexHint) { max-width: 400px; margin: 0; color: rgba(35,33,47,.72); font-size: 14px; line-height: 1.7; }
+.rolodexInfo > p { max-width: 400px; margin: 0; color: rgba(35,33,47,.72); font-size: 14px; line-height: 1.7; }
 .rolodexBullets { display: grid; gap: 0; margin-top: 26px; border-top: 1px solid rgba(35,33,47,.13); }
 .rolodexBullets span { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(35,33,47,.13); color: rgba(35,33,47,.84); font-size: 12px; }
 .rolodexBullets b { color: #c9a9f6; font: 700 9px/1 var(--font-mono); }
 .rolodexControls { display: flex; align-items: center; gap: 10px; margin-top: 26px; }
 .rolodexButton, .rolodexButtonGhost { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 43px; border: 1px solid rgba(35,33,47,.25); border-radius: 999px; color: #23212f; background: transparent; cursor: pointer; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
-.rolodexButton { padding: 0 17px; border-color: #23212f; color: #f7f9ff; background: #23212f; font-size: 11px; font-weight: 800; }
+.rolodexButton { width: 43px; padding: 0; border-color: #23212f; color: #f7f9ff; background: #23212f; font-size: 17px; }
 .rolodexButtonGhost { width: 43px; padding: 0; font-size: 17px; }
 .rolodexButton:hover, .rolodexButtonGhost:hover { transform: translateY(-2px); border-color: #c9a9f6; }
-.rolodexButton span { font-size: 15px; }
-.rolodexHint { margin: 19px 0 0; color: rgba(35,33,47,.48); font: 700 8px/1.6 var(--font-mono); letter-spacing: .08em; }
-.rolodexHint span { padding: 0 3px; color: #c9a9f6; }
 @media (max-width: 900px) { .rolodexLayout { grid-template-columns: 1fr; gap: 12px; } .rolodexStage { height: clamp(430px, 70vw, 590px); } .rolodexCard { width: clamp(205px, 34vw, 290px); } .rolodexInfo { max-width: 680px; margin-inline: auto; width: 100%; padding-top: 20px; } .rolodexInfo h3 { max-width: 560px; } }
-@media (max-width: 560px) { .rolodexStage { height: 430px; border-radius: 20px; } .rolodexCard { width: 210px; min-height: 270px; padding: 13px; } .rolodexVisual { height: 65px; margin: 9px 0; } .rolodexCopy h3 { font-size: 20px; } .rolodexCopy p { font-size: 9px; } .rolodexCopy li { font-size: 8px; } .rolodexOrbit { width: 86%; } .rolodexReadout { left: 16px; bottom: 15px; } .rolodexCore { width: 66px; height: 66px; } .rolodexCore span { font-size: 20px; } .rolodexInfoLabel { font-size: 8px; } .rolodexHint { font-size: 7px; } }
+@media (max-width: 560px) { .rolodexStage { height: 430px; border-radius: 20px; } .rolodexCard { width: 210px; min-height: 270px; padding: 13px; } .rolodexVisual { height: 65px; margin: 9px 0; } .rolodexCopy h3 { font-size: 20px; } .rolodexCopy p { font-size: 9px; } .rolodexCopy li { font-size: 8px; } .rolodexOrbit { width: 86%; } .rolodexInfoLabel { font-size: 8px; } }
 @media (prefers-reduced-motion: reduce) { .rolodexButton, .rolodexButtonGhost { transition: none !important; } }
 @media (prefers-reduced-motion: reduce) { .stackCard, .stackPrev, .stackNext { transition: none !important; } }
 
 /* Each workflow card enters independently; normal page scrolling stays native. */
-.howReadingGuide { display: flex; align-items: center; gap: 14px; margin-top: 34px; padding-top: 22px; border-top: 1px solid #dbe8fa; color: #6b81a4; font-size: 12px; }
-.howReadingGuide > svg { margin-left: auto; flex-shrink: 0; }
-.howReadingCount { flex-shrink: 0; color: #2563eb; font: 700 17px/1 var(--font-mono); }
-.howReadingCount i { color: #99aac4; font-size: 11px; font-style: normal; }
 .timeline::after { content: ""; position: absolute; top: 28px; bottom: 28px; left: 27px; width: 2px; border-radius: 2px; background: #2563eb; transform: scaleY(var(--workflow-progress, 0)); transform-origin: top; transition: transform 650ms cubic-bezier(.22,1,.36,1); }
 .timelineItem { z-index: 1; transition: opacity 800ms cubic-bezier(.22,1,.36,1), transform 900ms cubic-bezier(.22,1,.36,1), filter 750ms ease; }
 .timeline[data-motion="enabled"] .timelineItem:not([data-revealed="true"]) { opacity: 0; transform: translateY(48px) scale(.965); filter: blur(5px); }
 .timelineItem[data-active="true"] .timelineCard { border-color: var(--tone); box-shadow: 0 20px 50px -30px var(--tone), 0 3px 12px rgb(17 46 90 / 4%); }
 .timelineMarker { transition: box-shadow 600ms ease; }
 .timelineItem[data-active="true"] .timelineMarker { box-shadow: 0 0 0 6px #f7faff, 0 0 0 7px var(--tone-soft), 0 10px 30px -10px var(--tone); }
-@media (max-width: 980px) { .howReadingGuide { display: none; } }
 @media (max-width: 760px) { .timeline::after { left: 21px; } }
 @media (max-width: 560px) {
   .timeline { gap: 26px; }

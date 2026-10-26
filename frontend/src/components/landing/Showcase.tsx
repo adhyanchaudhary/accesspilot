@@ -73,9 +73,6 @@ export function Showcase() {
           <div className={styles.showcaseCopy}>
             <Reveal delay={60}>
               <span className={styles.kicker}>
-                <span className={styles.kickerIndex} aria-hidden="true">
-                  03
-                </span>
                 Clarity you can act on
               </span>
               <h2 id="showcase-title" className={styles.h2}>
@@ -103,7 +100,7 @@ export function Showcase() {
             </Reveal>
 
             <Reveal delay={200}>
-              <ButtonLink href={start.href} onClick={start.onClick} variant="ghost" withArrow>
+              <ButtonLink href={start.href} onClick={start.onClick} withArrow>
                 {start.label}
               </ButtonLink>
             </Reveal>
