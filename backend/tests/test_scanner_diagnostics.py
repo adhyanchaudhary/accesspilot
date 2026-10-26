@@ -252,3 +252,30 @@ def test_browser_stderr_is_drained_but_only_safe_tail_fields_returned():
     assert stream.remaining == -1
     assert fields == {'browser_signal': 'SIGTRAP'}
     assert asyncio.run(read_browser_exit(SimpleNamespace())) == {}
+
+
+def test_browser_file_budget_is_separate_from_report_budget(tmp_path, monkeypatch):
+    from backend import scanner_platform as platform
+    monkeypatch.setattr(platform, 'is_windows', lambda: False)
+    path = tmp_path / 'browser-cache'
+    with path.open('wb') as stream:
+        stream.truncate(5 * 1024 * 1024)
+    platform.check_windows_workspace(tmp_path)
+    assert platform.MAX_CHILD_FILE_BYTES == 4 * 1024 * 1024
+    with path.open('wb') as stream:
+        stream.truncate(platform.MAX_BROWSER_FILE_BYTES + 1)
+    with pytest.raises(platform.PlatformError):
+        platform.check_windows_workspace(tmp_path)
+
+
+def test_posix_total_workspace_budget_enforced(tmp_path, monkeypatch):
+    from backend import scanner_platform as platform
+    monkeypatch.setattr(platform, 'is_windows', lambda: False)
+    for number in range(3):
+        with (tmp_path / str(number)).open('wb') as stream:
+            stream.truncate(24 * 1024 * 1024)
+    class Process:
+        async def wait(self):
+            await asyncio.sleep(60)
+    with pytest.raises(platform.PlatformError):
+        asyncio.run(platform.wait_with_workspace_limit(Process(), tmp_path))

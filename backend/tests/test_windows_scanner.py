@@ -171,7 +171,7 @@ def test_windows_spawn_supports_selector_event_loop_and_kills_on_cancellation(wi
 def test_windows_workspace_limits(windows, monkeypatch):
     file = windows / 'cache'
     file.write_bytes(b'12345')
-    monkeypatch.setattr(platform, 'MAX_CHILD_FILE_BYTES', 4)
+    monkeypatch.setattr(platform, 'MAX_BROWSER_FILE_BYTES', 4)
     with pytest.raises(platform.PlatformError, match='scan_resource_limit'):
         platform.check_windows_workspace(str(windows))
 

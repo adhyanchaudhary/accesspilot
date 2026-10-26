@@ -147,7 +147,7 @@ class ScannerRunner:
                         read_task = asyncio.create_task(read_report(process))
                         exit_task = asyncio.create_task(read_browser_exit(process))
                         try:
-                            code = await process.wait()
+                            code = await scanner_platform.wait_with_workspace_limit(process, work)
                             raw, overflow = await read_task
                             browser_exit = await exit_task
                         except BaseException:

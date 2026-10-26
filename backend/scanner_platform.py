@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 MAX_CHILD_FILE_BYTES = 4 * 1024 * 1024
+MAX_BROWSER_FILE_BYTES = 32 * 1024 * 1024
 MAX_WORKSPACE_BYTES = 64 * 1024 * 1024
 CHILD_CPU_SECONDS = 60
 CONTAINMENT_EXIT = 72
@@ -98,7 +99,7 @@ def install_child_limits():
     else:
         import resource
         resource.setrlimit(resource.RLIMIT_CPU, (CHILD_CPU_SECONDS, CHILD_CPU_SECONDS))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_CHILD_FILE_BYTES, MAX_CHILD_FILE_BYTES))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_BROWSER_FILE_BYTES, MAX_BROWSER_FILE_BYTES))
     # Independent wall-time bound, including if the parent disappears during spawn.
     import threading
     timer = threading.Timer(CHILD_CPU_SECONDS, lambda: os._exit(TIMEOUT_EXIT))
@@ -136,7 +137,7 @@ def scanner_environment(work):
 
 
 def check_windows_workspace(work):
-    """Windows has no RLIMIT_FSIZE. Bound audit writes and monitor browser temp files."""
+    """Bound browser files and total workspace usage without following symlinks."""
     total = entries = 0
     pending = [work]
     while pending:
@@ -153,13 +154,15 @@ def check_windows_workspace(work):
                     info = entry.stat(follow_symlinks=False)
                 except FileNotFoundError:
                     continue  # Chromium can remove cache entries while they are inspected.
+                if stat.S_ISLNK(info.st_mode) and not is_windows():
+                    continue  # Chromium singleton links; never follow them.
                 if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
                     raise PlatformError('scan_resource_limit')
                 if stat.S_ISDIR(info.st_mode):
                     pending.append(entry.path)
                 else:
                     total += info.st_size
-                    if info.st_size > MAX_CHILD_FILE_BYTES or total > MAX_WORKSPACE_BYTES:
+                    if info.st_size > MAX_BROWSER_FILE_BYTES or total > MAX_WORKSPACE_BYTES:
                         raise PlatformError('scan_resource_limit')
 
 
@@ -265,3 +268,21 @@ async def cleanup_workspace(temporary):
             if attempt == 49:
                 raise PlatformError('scanner_cleanup_failed') from None
             await asyncio.sleep(.1)
+
+
+async def wait_with_workspace_limit(process, work):
+    """Poll the shared budget on POSIX; the Windows adapter already monitors it."""
+    if is_windows():
+        return await process.wait()
+    waiting = asyncio.create_task(process.wait())
+    try:
+        while True:
+            await asyncio.to_thread(check_windows_workspace, work)
+            done, _ = await asyncio.wait({waiting}, timeout=0.1)
+            if done:
+                await asyncio.to_thread(check_windows_workspace, work)
+                return waiting.result()
+    finally:
+        if not waiting.done():
+            waiting.cancel()
+        await asyncio.gather(waiting, return_exceptions=True)

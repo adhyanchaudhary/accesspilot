@@ -139,3 +139,11 @@ never logged or persisted. `SIGXFSZ` points to the existing per-file write limit
 `SIGXCPU` points to the CPU limit. Other signals such as `SIGTRAP` require further
 investigation and do not by themselves establish a sandbox or memory failure.
 Windows scanner process management is unchanged.
+
+Browser temporary files have a separate 32 MiB per-file limit. The child audit
+output remains capped at 4 MiB and the parent accepts at most 2 MiB. On POSIX,
+RLIMIT_FSIZE applies the browser file cap; a parent monitor checks the existing
+64 MiB total workspace budget every 100 ms and terminates the process group when
+it is exceeded. This polling budget can temporarily overshoot between checks.
+Chromium singleton symlinks are not followed. Windows uses the same browser-file
+budget with its existing workspace monitor and Job Object cleanup.
