@@ -80,12 +80,12 @@ def test_windows_report_handle_does_not_follow_links(monkeypatch, kind):
     monkeypatch.setattr(os, 'O_BINARY', 0, raising=False)
     monkeypatch.setattr(platform, 'kernel32', lambda: api)
     if kind == 'regular':
-        assert platform.open_windows_report(Path('audit.json')) == 17
+        assert platform.open_windows_report(Path('scanner-diagnostic.json')) == 17
         convert.assert_called_once()
         api.CloseHandle.assert_not_called()  # CRT now owns handle
     else:
         with pytest.raises(OSError):
-            platform.open_windows_report(Path('audit.json'))
+            platform.open_windows_report(Path('scanner-diagnostic.json'))
         api.CloseHandle.assert_called_once_with(42)
         convert.assert_not_called()
     args = api.CreateFileW.call_args.args
@@ -112,12 +112,13 @@ def test_windows_runner_always_cleans_process_and_temp_files(windows, monkeypatc
             if mode in ('timeout', 'cancel'):
                 await asyncio.sleep(1)
             return {'nonzero': 1, 'containment': platform.CONTAINMENT_EXIT}.get(mode, 0)
+        async def read_stdout(self, limit):
+            return (json.dumps(axe_report).encode(), False) if mode == 'success' else (b'', False)
         async def close(self):
             self.closed = True
     process = Process()
     async def spawn(args, work, env):
         captured.update(args=args, work=work, env=env)
-        Path(args[args.index('--output') + 1]).write_text(json.dumps(axe_report))
         return process
     monkeypatch.setattr(platform, 'spawn_windows', spawn)
     async def forbidden(*args, **kwargs):

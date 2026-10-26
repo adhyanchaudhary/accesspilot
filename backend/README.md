@@ -1,7 +1,9 @@
 # AccessPilot local backend
 
-Python 3.12+, FastAPI, PyJWT/cryptography, httpx and python-dotenv. Run commands
-from the repository root. This is a local, single-worker implementation. The React/TypeScript/Vite frontend lives in `frontend/`.
+Python 3.12+, FastAPI, PyJWT/cryptography, httpx, python-dotenv, Motor and certifi.
+Run commands from the repository root. Scan results are persisted asynchronously to
+MongoDB Atlas; sessions and in-flight jobs remain in process memory. The
+React/TypeScript/Vite frontend lives in `frontend/`.
 See [LOCAL_E2E_TEST.md](../LOCAL_E2E_TEST.md) for Windows setup and the real-data checklist.
 
 ```bash
@@ -21,6 +23,30 @@ The PEM can be supplied via `GITHUB_PRIVATE_KEY_PATH` (recommended, chmod 600) o
 key path fails startup; absent credentials allow health but protected GitHub operations
 return 503. The app binds locally. For cloud onboarding internal smoke checks use local
 HTTP requests; the cloud machine's localhost is separate from your laptop's localhost.
+
+## MongoDB Atlas persistence
+
+Create a dedicated database user and copy its Atlas SRV connection string into
+`backend/.env` (or the process environment). Do not use an administrative account and
+do not commit the URI:
+
+```dotenv
+MONGO_URI=mongodb+srv://accesspilot:<password>@cluster.example.mongodb.net/?retryWrites=true&w=majority
+MONGO_DATABASE=accesspilot
+MONGO_SCAN_COLLECTION=scan_results
+```
+
+The backend creates one shared `AsyncIOMotorClient` with
+`tlsCAFile=certifi.where()` and inserts one document per successful scan. The raw,
+validated axe-core payload is stored under `results`, alongside `target_url`, an
+aware-UTC `timestamp`, and the internal `job_id`. The MongoDB-generated `_id` is
+returned as the string `scan_id` by `GET /audits/{job_id}`. A failed insert fails the
+job with `persistence_failed` and does not dispatch to n8n. The scan report itself is
+never written to disk: the sandboxed scanner emits it over a bounded stdout pipe.
+
+If `MONGO_URI` is omitted (for example in isolated tests), a null store is used and
+`scan_id` is `null`. Set the URI in every real deployment. Restrict network access with
+Atlas IP access lists and keep database credentials out of the scanner child environment.
 
 ```bash
 python -m pytest backend/tests -q
@@ -80,7 +106,7 @@ CORS permits credentials only from FRONTEND_ORIGIN. Requests use
 | GET /github/install | Session | Redirect to app installation page |
 | GET /github/repositories | Session | `{ "repositories": [{"id": 7, "installation_id": 3, "full_name": "owner/site", "private": true, "default_branch": "main"}] }` |
 | POST /audits | Session + CSRF + Origin | 202 `{ "job_id": "UUID", "status": "queued" }` (or existing job status on deduplication) |
-| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, summary, audit, remediation}`; remediation is `null`, `{status: "in_progress", branch, commit_sha?}`, `{status: "failed", error}`, or `{status: "completed", branch, commit_sha, pr_url}` |
+| GET /audits/{job_id} | Session; job owner only | `{job_id, status, error, scan_id, summary, audit, remediation}`; `scan_id` is the MongoDB `_id` string; remediation is `null`, `{status: "in_progress", branch, commit_sha?}`, `{status: "failed", error}`, or `{status: "completed", branch, commit_sha, pr_url}` |
 | POST /auth/logout | Session + CSRF + Origin | `{ "status": "logged_out" }` |
 
 Interactive OpenAPI documentation is at `/docs` in the local profile only; tunnel mode disables it. Errors use `{ "detail": ... }`:
@@ -122,8 +148,8 @@ metadata and website URLs. Never place secrets in website URLs.
 
 POST /audits authenticates the selection, pins the commit, queues a background scan,
 and returns 202 immediately after queue admission (GitHub/URL preflight still runs in
-that request). The worker runs `backend/scanner.py`, captures audit.json and validates
-it before sending this authenticated payload. A 202 means **queued locally**, not yet
+that request). The worker runs `backend/scanner.py`, receives the bounded axe JSON over
+stdout, validates it, persists it to MongoDB, and then sends this authenticated payload. A 202 means **queued locally**, not yet
 accepted by n8n. Job status becomes `submitted` only after n8n returns 2xx; this still
 does not mean Gemini remediation completed. The bounded draft-remediation endpoint is documented below.
 
@@ -298,8 +324,8 @@ exception type, Python/Playwright version and numeric OS/browser/child exit code
 when available. Proxy failures are counts under fixed categories, never destinations.
 They contain no URL/query, local path, environment values, request/response headers,
 exception message, stack trace, page HTML or credentials. The status file is bounded,
-read with the same no-symlink/reparse protections as reports and removed with the
-workspace. No public debug endpoint is added.
+read with no-symlink/reparse protections and removed with the workspace. The scan
+report itself is never written to disk. No public debug endpoint is added.
 
 Example safe output (illustrative):
 
@@ -320,7 +346,7 @@ scanner_diagnostic {"stage":"browser_launch","reason":"browser_missing","excepti
 | navigation / certificate_failed | Repair the host's certificate trust using supported configuration, never ignore HTTPS errors. |
 | navigation / navigation_timeout | Target did not load within the unchanged navigation deadline. |
 | axe / axe_failed | Engine injection/execution failed after navigation; report is not dispatched. |
-| report_read or report_write | Output is missing, malformed, blocked by filesystem permissions or exceeds existing limits. |
+| report_emit or report_read | The child could not emit the report (broken output stream) or the parent received empty, malformed or oversize JSON. |
 | cleanup / cleanup_failed | Browser files remained locked after bounded Windows sharing-violation/directory-not-empty retries. |
 
 Some failures now have specific safe API codes such as `scanner_browser_missing`,
@@ -355,21 +381,24 @@ unvalidated corporate/platform proxy or bypasses an access denial.
 `SCAN_CONCURRENCY` defaults to 2 (allowed 1..4), `SCAN_QUEUE_SIZE` to 20 (allowed
 1..100). The single FastAPI process owns a fixed worker pool and bounded queue.
 A full queue returns 503. Browser work runs in a separate process group in a private
-temporary directory; audit.json is read with size/type checks and deleted afterward.
-The child environment excludes application credentials. Timeout, cancellation and
-shutdown kill the scanner/browser process group. No scan is executed in an HTTP
-request or in an unbounded thread/background-task pool.
+temporary directory. The raw axe report is streamed from the child over stdout with a
+parent-side byte cap, then inserted into MongoDB; no report file is created. The child
+environment excludes application credentials. Timeout, cancellation and shutdown kill
+the scanner/browser process group. No scan is executed in an HTTP request or in an
+unbounded thread/background-task pool.
 
 Job states: **queued → scanning → dispatching → submitted**, or **failed**. Poll
 GET /audits/{job_id} with the submitting user's session; another user receives 404.
-The response includes `error`, `summary` (violation/affected-element counts when
-available), `audit: {violations: [...]}` once scanned, and an optional safe `remediation` view (status, safe failure code, branch/SHA/draft PR URL only),
-never machine credentials, raw scanner logs, fingerprints, pending write state or
-internal webhook details.
+The response includes `error`, the MongoDB `scan_id` (or `null` while unavailable),
+`summary` (violation/affected-element counts when available), `audit: {violations: [...]}`
+once scanned, and an optional safe `remediation` view (status, safe failure code,
+branch/SHA/draft PR URL only), never machine credentials, raw scanner logs,
+fingerprints, pending write state or internal webhook details.
 `submitted` means n8n accepted the payload, not that agents finished or fixed code.
 Missing browser binaries/libraries/sandbox support produce `scanner_failed`; other
-safe codes include `scan_timed_out`, `invalid_report`, `authorization_expired`,
-`authorization_failed`, `dispatch_rejected`, `dispatch_unknown` and `backend_stopped`.
+safe codes include `scan_timed_out`, `invalid_report`, `persistence_failed`,
+`authorization_expired`, `authorization_failed`, `dispatch_rejected`,
+`dispatch_unknown` and `backend_stopped`.
 A failed scan/report never sends an empty fake audit to n8n. Zero findings are valid
 only when axe actually reports an empty violations array.
 
@@ -466,10 +495,10 @@ not a secret scanner: review the repository before sending source to cloud agent
 a secret embedded in an ordinary source file can still be returned. No local checkout,
 arbitrary GitHub URL fetching, code execution, commits or PR creation is involved.
 
-Jobs and sessions remain in single-process memory (up to 1,000 active jobs); use one
-worker, avoid reload during jobs, and finish within the owner's session lifetime.
-A production queue/persistent encrypted store and job renewal/cancellation are outside
-this integration. Existing browser login, repository listing and logout contracts are
+Jobs and sessions remain in single-process memory (up to 1,000 active jobs); scan
+documents are persisted in MongoDB Atlas. Use one worker, avoid reload during jobs, and
+finish within the owner's session lifetime. A production queue and job
+renewal/cancellation are outside this integration. Existing browser login, repository listing and logout contracts are
 unchanged. Frontend submission responses still contain only job_id and status; polling exposes
 a safe failure code and count summary, never worker credentials or raw exception text.
 

@@ -29,10 +29,17 @@ class Settings:
     tunnel_mode: bool = False
     scan_concurrency: int = 2
     scan_queue_size: int = 20
+    mongo_uri: str = ''
+    mongo_database: str = 'accesspilot'
+    mongo_collection: str = 'scan_results'
 
     def __post_init__(self):
         if not 1 <= self.scan_concurrency <= 4 or not 1 <= self.scan_queue_size <= 100:
             raise ValueError('Scan concurrency must be 1..4 and queue size 1..100')
+        if self.mongo_uri and not self.mongo_uri.startswith(('mongodb://', 'mongodb+srv://')):
+            raise ValueError('MONGO_URI must be a MongoDB connection string')
+        if not self.mongo_database or not self.mongo_collection:
+            raise ValueError('MongoDB database and collection names must be configured')
 
     @classmethod
     def from_env(cls):
@@ -57,6 +64,9 @@ class Settings:
             tunnel_mode=os.getenv('TUNNEL_MODE', 'false').lower() == 'true',
             scan_concurrency=int(os.getenv('SCAN_CONCURRENCY', '2')),
             scan_queue_size=int(os.getenv('SCAN_QUEUE_SIZE', '20')),
+            mongo_uri=os.getenv('MONGO_URI', '').strip(),
+            mongo_database=os.getenv('MONGO_DATABASE', 'accesspilot').strip(),
+            mongo_collection=os.getenv('MONGO_SCAN_COLLECTION', 'scan_results').strip(),
         )
 
 

@@ -90,9 +90,14 @@ class AuditQueue:
                         raise ScanFailure('scan_timed_out') from None
                     audit = normalize_audit(raw, job['website_url'])
                     await self.authorize(job)
+                    try:
+                        scan_id = await self.app.state.scan_store.save_scan(
+                            job['website_url'], raw, job_id=job['id'])
+                    except Exception:
+                        raise ScanFailure('persistence_failed') from None
                     credential = secrets.token_urlsafe(32)
                     job.update(status='dispatching', credential_hash=hashlib.sha256(credential.encode()).hexdigest(),
-                               summary=audit['summary'], audit=audit)
+                               scan_id=scan_id, summary=audit['summary'], audit=audit)
                     payload = {'schema_version': 1, 'job_id': job['id'], 'website_url': job['website_url'],
                                'repository': job['repository'], 'requested_by': job['owner_user_id'],
                                'base_sha': job['base_sha'], 'audit': audit,

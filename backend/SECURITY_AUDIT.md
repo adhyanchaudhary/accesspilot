@@ -53,9 +53,14 @@ health and OAuth entry points remain publicly reachable.
   ordinary authorized repository source could be returned to n8n/Gemini. Review the
   repository and obtain permission to process private source before running agents.
 - Jobs, scan queue, sessions and rate counters live in one process. Restart revokes access and
-  loses jobs; there is no durable queue, distributed limit or production DDoS defense.
+  loses job status; there is no durable queue, distributed limit or production DDoS defense.
   Public callers can consume the global development request budget. GitHub/n8n quotas
   and latency remain external constraints.
+- Completed scan documents are persisted to MongoDB Atlas through a single Motor client
+  using certifi's CA bundle. The connection URI is read from the application environment
+  and is never copied into the scanner child environment. An insert failure fails the job
+  and prevents n8n dispatch; the raw axe report is streamed from the child and is not
+  written to local disk. Restrict Atlas users, IP access lists and backups appropriately.
 - The backend now runs a single-page Playwright scan behind a public-IPv4-only proxy
   that checks DNS and pins actual connections for navigation, redirects and subresources.
   Its browser has sandboxing enabled, no app credentials, and bounded process lifetime/

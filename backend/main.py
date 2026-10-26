@@ -17,6 +17,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
+from .database import MongoScanRepository, NullScanRepository
 from .github_auth import GitHub, Settings
 from .job_sources import snapshot, source_router
 from .security import RequestBoundary
@@ -65,13 +66,17 @@ class AuditRequest(BaseModel):
     repository_id: int = Field(gt=0)
 
 
-def create_app(settings=None, transport=None, scanner=None):
+def create_app(settings=None, transport=None, scanner=None, scan_store=None):
     settings = settings or Settings.from_env()
     origin = urlsplit(settings.frontend_origin)
     if (origin.scheme not in ('http', 'https') or not origin.hostname or origin.username
             or origin.password or origin.path or origin.query or origin.fragment
             or '*' in settings.frontend_origin):
         raise ValueError('FRONTEND_ORIGIN must be one exact HTTP(S) origin without a trailing slash')
+    if scan_store is None:
+        scan_store = (MongoScanRepository(settings.mongo_uri, settings.mongo_database,
+                                          settings.mongo_collection)
+                      if settings.mongo_uri else NullScanRepository())
     # Suppress access/HTTP wire logs even when an external runner configures logging.
     for name in ('uvicorn.access', 'httpx', 'httpcore'):
         logging.getLogger(name).disabled = True
@@ -86,7 +91,12 @@ def create_app(settings=None, transport=None, scanner=None):
             try:
                 yield
             finally:
-                await app.state.audit_queue.stop()
+                try:
+                    await app.state.audit_queue.stop()
+                finally:
+                    close = getattr(app.state.scan_store, 'close', None)
+                    if close:
+                        close()
 
     app = FastAPI(title='AccessPilot', lifespan=lifespan, debug=False,
                   docs_url=None if settings.tunnel_mode else '/docs',
@@ -98,6 +108,7 @@ def create_app(settings=None, transport=None, scanner=None):
     app.state.sessions = ExpiringStore()
     app.state.states = ExpiringStore()
     app.state.jobs = ExpiringStore(limit=1000)
+    app.state.scan_store = scan_store
     app.state.audit_queue = AuditQueue(app, settings, scanner)
     app.include_router(source_router())
     app.add_middleware(CORSMiddleware, allow_origins=[settings.frontend_origin],
@@ -271,7 +282,8 @@ def create_app(settings=None, transport=None, scanner=None):
         if not job or job['owner_user_id'] != s['user']['id']:
             raise HTTPException(404, 'Audit job not found')
         return {'job_id': job['id'], 'status': job['status'], 'error': job.get('error'),
-                'summary': job.get('summary'), 'remediation': remediation_view(job),
+                'scan_id': job.get('scan_id'), 'summary': job.get('summary'),
+                'remediation': remediation_view(job),
                 'audit': {'violations': job['audit']['violations']} if job.get('audit') else None}
 
     app.add_middleware(RequestBoundary, tunnel_mode=settings.tunnel_mode)

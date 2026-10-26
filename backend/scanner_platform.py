@@ -174,6 +174,25 @@ class WindowsProcess:
             await asyncio.sleep(.1)
         return self.process.returncode
 
+    async def read_stdout(self, limit):
+        return await asyncio.to_thread(self._read_stdout, limit)
+
+    def _read_stdout(self, limit):
+        stream = self.process.stdout
+        if stream is None:
+            return b'', False
+        chunks, retained, overflow = [], 0, False
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                break
+            if retained < limit + 1:
+                keep = chunk[:limit + 1 - retained]
+                chunks.append(keep)
+                retained += len(keep)
+                overflow = overflow or retained > limit
+        return b''.join(chunks), overflow
+
     async def close(self):
         if self.process.poll() is None:
             self.process.kill()  # Closing the child's job handle kills all descendants.
@@ -181,13 +200,18 @@ class WindowsProcess:
             await asyncio.to_thread(self.process.wait, timeout=5)
         except subprocess.TimeoutExpired:
             raise PlatformError('scanner_cleanup_failed') from None
+        if self.process.stdout is not None:
+            try:
+                self.process.stdout.close()
+            except OSError:
+                pass
 
 
 async def spawn_windows(args, work, env):
     # Shield spawn so cancellation cannot orphan the Popen result in an executor thread.
     launch = asyncio.create_task(asyncio.to_thread(subprocess.Popen, args,
         cwd=work, env=env, creationflags=0x200 | 0x08000000,  # NEW_PROCESS_GROUP | NO_WINDOW
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
         close_fds=True, shell=False))
     try:
         process = await asyncio.shield(launch)
