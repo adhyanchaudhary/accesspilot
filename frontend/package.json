@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "tsc -b --noEmit",
-    "test": "vitest run --maxWorkers=1 --minWorkers=1"
+    "test": "vitest run src --maxWorkers=1 --minWorkers=1 && node --test scripts/netlify-redirects.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.446.0",

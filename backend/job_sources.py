@@ -1,4 +1,8 @@
 """Pinned repository snapshots and shared job-scoped worker authorization."""
+import asyncio
+from typing import Literal
+from pydantic import BaseModel, ConfigDict
+
 import base64
 import binascii
 import hashlib
@@ -123,8 +127,29 @@ async def authorized_job(job_id: str, request: Request,
     return job, github, token
 
 
+class WorkflowOutcome(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    outcome: Literal['no_candidate_files', 'no_changes', 'validation_failed', 'agent_failed']
+
+
 def source_router():
     router = APIRouter(prefix='/service/jobs', tags=['Job source service'])
+
+    @router.post('/{job_id}/outcome')
+    async def outcome(body: WorkflowOutcome, request: Request, access=Depends(authorized_job)):
+        job = access[0]
+        async with job.setdefault('remediation_lock', asyncio.Lock()):
+            from .remediation import owner_live
+            owner_live(job, request)
+            value = {'status': 'failed' if body.outcome in ('validation_failed', 'agent_failed') else 'no_changes',
+                     'reason': body.outcome}
+            if job.get('remediation') or job.get('remediation_error'):
+                raise HTTPException(409, 'Remediation already started; outcome cannot replace it')
+            old = job.get('workflow_outcome')
+            if old and old != value:
+                raise HTTPException(409, 'A different workflow outcome was already recorded')
+            job['workflow_outcome'] = value
+            return {'job_id': job['id'], **value}
 
     @router.get('/{job_id}/tree')
     async def tree(access=Depends(authorized_job)):

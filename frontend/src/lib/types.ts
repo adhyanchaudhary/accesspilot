@@ -26,6 +26,7 @@ export type AuditStatus =
   | 'scanning'
   | 'dispatching'
   | 'submitted'
+  | 'completed'
   | 'failed'
 
 export interface AuditSummary {
@@ -38,7 +39,8 @@ export interface AuditSummary {
  * renders what the backend provides and never fabricates a PR or commit.
  */
 export interface RemediationResult {
-  status?: 'in_progress' | 'completed' | 'failed'
+  status?: 'in_progress' | 'completed' | 'failed' | 'no_changes'
+  reason?: 'no_violations' | 'no_candidate_files' | 'no_changes' | 'validation_failed' | 'agent_failed'
   error?: string
   pr_url?: string
   branch?: string

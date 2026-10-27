@@ -40,7 +40,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
   const additions = available.reduce((n, f) => n + (f.additions ?? 0), 0)
   const deletions = available.reduce((n, f) => n + (f.deletions ?? 0), 0)
   const incomplete = available.length !== files.length
-  const waiting = job.status !== 'failed' && job.remediation?.status !== 'failed'
+  const waiting = job.remediation?.status !== 'no_changes' && job.status !== 'failed' && job.remediation?.status !== 'failed'
 
   async function copyPatch() {
     if (!file || file.status !== 'available') return
@@ -59,7 +59,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
   return <section className="changes-viewer" aria-labelledby="changes-title">
     <header className="changes-heading">
       <div><span className="changes-eyebrow"><Terminal size={13} aria-hidden="true" /> Code review</span>
-        <h2 id="changes-title">Proposed changes</h2><p>Read-only preview · {commit ? 'Draft PR · Not merged' : 'Awaiting a confirmed draft PR'}</p></div>
+        <h2 id="changes-title">Proposed changes</h2><p>Read-only preview · {commit ? 'Draft PR · Not merged' : job.remediation?.status === 'no_changes' ? 'No changes proposed' : 'Awaiting a confirmed draft PR'}</p></div>
       <div className="changes-actions">{confirmed && <div className="diff-totals"><span>{files.length} {files.length === 1 ? 'file' : 'files'}</span>
         {available.length ? <><span className="diff-add">+{additions}</span><span className="diff-delete">−{deletions}</span>
         {incomplete && <span>visible changes only</span>}</> : <span>Counts unavailable</span>}</div>}
@@ -71,7 +71,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
         data?.status === 'unavailable' ? 'No preview recorded for this audit' : !waiting ? 'No confirmed code changes' : 'Waiting for confirmed changes'}</h3>
       <p>{error ?? (loading ? 'Checking your repository access and pinned comparison.' :
         data?.status === 'unavailable' ? 'This job has no confirmed preview. Older jobs need a fresh audit; a confirmed draft PR can still be reviewed on GitHub.' :
-        !waiting ? 'The audit or remediation needs attention. No successful changes are being claimed.' :
+        job.remediation?.status === 'no_changes' ? 'No code changes were produced. Review the scan outcome above.' : !waiting ? 'The audit or remediation needs attention. No successful changes are being claimed.' :
         'The diff appears here after the backend confirms a draft pull request. Workflow submission alone does not mean the fixes are finished.')}</p>
       {error && <button type="button" className="btn-secondary" onClick={() => setRetry(n => n + 1)}>Retry preview</button>}
     </div> : <>

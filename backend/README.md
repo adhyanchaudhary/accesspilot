@@ -801,3 +801,8 @@ are not written to disk, logs, browser storage, PR bodies or ordinary status res
 See [the Render deployment guide](../DEPLOY_RENDER.md) for the root Dockerfile,
 environment settings, single-worker launcher (`python -m backend.serve`), and
 required sandbox/memory acceptance checks. Local `backend.run` behavior is unchanged.
+
+## Terminal workflow outcomes
+
+See [workflow outcome setup](../WORKFLOW_OUTCOMES.md) for zero-violation completion,
+the authenticated `POST /service/jobs/{job_id}/outcome` contract, and manual n8n wiring.

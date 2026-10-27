@@ -87,6 +87,8 @@ async def remediate(body, request, access):
     fingerprint = validate_input(body)
     lock = job.setdefault('remediation_lock', asyncio.Lock())
     async with lock:
+        if job.get('workflow_outcome'):
+            raise HTTPException(409, 'Workflow already finished without remediation')
         owner = owner_live(job, request)
         old = job.get('remediation')
         if old and old['fingerprint'] != fingerprint:

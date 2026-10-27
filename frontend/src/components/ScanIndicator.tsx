@@ -9,7 +9,7 @@ import type { AuditStatus } from '../lib/types'
 export function ScanIndicator({ status }: { status: AuditStatus }) {
   const meta = statusMeta(status)
   const active = meta.active
-  const success = status === 'submitted'
+  const success = status === 'submitted' || status === 'completed'
   const failed = status === 'failed'
 
   const ringColor = success

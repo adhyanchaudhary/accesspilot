@@ -19,19 +19,20 @@ export function AuditStatusSummary({
   const completed = remediation?.status === 'completed'
   const failed = status === 'failed' || remediation?.status === 'failed'
 
-  const tone: Tone = failed ? 'error' : completed ? 'success' : 'pending'
+  const noChanges = remediation?.status === 'no_changes'
+  const tone: Tone = failed ? 'error' : (completed || noChanges) ? 'success' : 'pending'
   const title = failed
     ? status === 'failed'
       ? 'Audit failed'
       : 'Remediation failed'
-    : completed
+    : noChanges ? 'Scan complete — no draft PR' : completed
       ? 'Draft PR confirmed'
       : status === 'submitted'
         ? 'Awaiting draft PR'
         : 'Audit in progress'
   const note = failed
     ? 'Review the details below before retrying.'
-    : completed
+    : noChanges ? 'Review the findings and outcome below.' : completed
       ? 'Ready for human review.'
       : status === 'submitted'
         ? 'AI remediation is still running.'
@@ -42,7 +43,7 @@ export function AuditStatusSummary({
       <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${TONE_CLASSES[tone]}`}>
         {failed ? (
           <AlertOctagon className="h-5 w-5" aria-hidden="true" />
-        ) : completed ? (
+        ) : (completed || noChanges) ? (
           <GitPullRequest className="h-5 w-5" aria-hidden="true" />
         ) : (
           <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />

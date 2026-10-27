@@ -95,6 +95,10 @@ class AuditQueue:
                             job['website_url'], raw, job_id=job['id'])
                     except Exception:
                         raise ScanFailure('persistence_failed') from None
+                    if not audit['violations']:
+                        job.update(status='completed', scan_id=scan_id, summary=audit['summary'],
+                                   audit=audit, workflow_outcome={'status': 'no_changes', 'reason': 'no_violations'})
+                        continue
                     credential = secrets.token_urlsafe(32)
                     job.update(status='dispatching', credential_hash=hashlib.sha256(credential.encode()).hexdigest(),
                                scan_id=scan_id, summary=audit['summary'], audit=audit)

@@ -6,6 +6,7 @@ import { Spinner } from './Spinner'
 const ORDER: AuditStatus[] = ['queued', 'scanning', 'dispatching', 'submitted']
 
 export function AuditTimeline({ status }: { status: AuditStatus }) {
+  if (status === 'completed') return <p role="status">Scan complete. No automatic remediation needed.</p>
   const failed = status === 'failed'
   const currentIndex = ORDER.indexOf(status)
 

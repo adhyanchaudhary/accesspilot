@@ -129,6 +129,8 @@ def create_app(settings=None, transport=None, scanner=None, scan_store=None):
     def remediation_view(job):
         # Only the public result fields; fingerprints, pending steps and commit
         # planning state stay server-side.
+        if job.get('workflow_outcome'):
+            return job['workflow_outcome']
         state = job.get('remediation')
         if job.get('remediation_error') and not (state and state.get('result')):
             return {'status': 'failed', 'error': job['remediation_error']}

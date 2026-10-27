@@ -36,6 +36,7 @@ export const AUDIT_STATUS_META: Record<AuditStatus, StatusMeta> = {
     tone: 'success',
     active: false,
   },
+  completed: {label: 'Scan complete', description: 'No automatically detectable violations found.', tone: 'success', active: false},
   failed: {
     label: 'Failed',
     description: 'The audit could not be completed.',

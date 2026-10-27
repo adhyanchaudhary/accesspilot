@@ -10,6 +10,7 @@ const ORDER: AuditStatus[] = ['queued', 'scanning', 'dispatching', 'submitted']
  * It reflects real stages only and never implies a fabricated percentage.
  */
 export function StatusStepper({ status }: { status: AuditStatus }) {
+  if (status === 'completed') return <p role="status">Scan complete. No automatic remediation needed.</p>
   const failed = status === 'failed'
   const currentIndex = ORDER.indexOf(status)
 

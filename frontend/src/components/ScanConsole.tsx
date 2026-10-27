@@ -21,6 +21,7 @@ const STAGE_INDEX: Record<AuditStatus, number> = {
   scanning: 1,
   dispatching: 2,
   submitted: 3,
+  completed: 3,
   failed: -1,
 }
 
@@ -75,7 +76,7 @@ export function ScanConsole({
 
   const currentStage = status ? STAGE_INDEX[status] : -1
   const badge =
-    status === 'submitted' ? 'Complete' : status === 'failed' ? 'Failed' : live ? 'Live' : 'Preview'
+    (status === 'submitted' || status === 'completed') ? 'Complete' : status === 'failed' ? 'Failed' : live ? 'Live' : 'Preview'
 
   return (
     <section

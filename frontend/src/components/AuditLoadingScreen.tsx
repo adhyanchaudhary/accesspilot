@@ -9,6 +9,7 @@ const STAGE_INDEX: Record<AuditStatus, number> = {
   scanning: 1,
   dispatching: 2,
   submitted: 3,
+  completed: 3,
   failed: -1,
 }
 
@@ -17,6 +18,7 @@ const STAGE_PROGRESS: Record<AuditStatus, number> = {
   scanning: 45,
   dispatching: 78,
   submitted: 100,
+  completed: 100,
   failed: 100,
 }
 
@@ -26,6 +28,7 @@ const STAGE_DESCRIPTION: Record<AuditStatus, string> = {
   queued: 'Waiting for a scanner worker to pick up the job.',
   scanning: 'Rendering the page and running accessibility checks.',
   dispatching: 'Grouping findings and handing off to remediation.',
+  completed: 'Scan complete — no automatic remediation needed.',
   submitted: 'Handoff complete — preparing the audit results.',
   failed: 'The audit could not be completed.',
 }

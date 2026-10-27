@@ -105,10 +105,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 function malformed(): never { throw new ApiError(502, 'Malformed backend response') }
-const validStatus = (s: unknown) => typeof s === 'string' && ['queued', 'scanning', 'dispatching', 'submitted', 'failed'].includes(s)
+const validStatus = (s: unknown) => typeof s === 'string' && ['queued', 'scanning', 'dispatching', 'submitted', 'completed', 'failed'].includes(s)
 const count = (n: unknown) => Number.isSafeInteger(n) && Number(n) >= 0
 function validRemediation(r: RemediationResult): boolean {
-  if (!['in_progress', 'completed', 'failed'].includes(r.status ?? '')) return false
+  if (!['in_progress', 'completed', 'failed', 'no_changes'].includes(r.status ?? '')) return false
+  if (r.reason != null && !['no_violations','no_candidate_files','no_changes','validation_failed','agent_failed'].includes(r.reason)) return false
   if (r.error != null && typeof r.error !== 'string') return false
   if (r.branch != null && typeof r.branch !== 'string') return false
   if (r.commit_sha != null && (typeof r.commit_sha !== 'string' || !/^[a-f0-9]{40}$/.test(r.commit_sha))) return false

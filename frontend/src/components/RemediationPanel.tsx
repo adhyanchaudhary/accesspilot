@@ -89,11 +89,20 @@ export function RemediationPanel({
     )
   }
 
+  if (remediation?.status === 'no_changes') {
+    const message = remediation.reason === 'no_violations'
+      ? 'No automatically detectable violations found. This does not certify full accessibility.'
+      : remediation.reason === 'no_candidate_files'
+        ? 'No matching source files were identified. Review the scan findings manually.'
+        : 'No automatic code changes were proposed. Review any remaining findings manually.'
+    return <div className="card p-5"><h3 className="text-sm font-bold">Scan complete — no draft PR</h3><p className="mt-2 text-sm">{message}</p></div>
+  }
+
   if (remediation?.status === 'failed') {
     return <div className="card p-5" role="alert">
       <h3 className="text-sm font-bold">Remediation needs attention</h3>
       <p className="mt-2 text-sm">The backend could not confirm remediation completion. Check the n8n execution before retrying; partial GitHub work may exist.</p>
-      <p className="mt-2 font-mono text-xs">{remediation.error}</p>
+      <p className="mt-2 font-mono text-xs">{remediation.reason ?? remediation.error}</p>
     </div>
   }
 

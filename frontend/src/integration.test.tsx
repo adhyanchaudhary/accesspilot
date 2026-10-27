@@ -110,3 +110,10 @@ it.each([{...job,summary:{}},{...job,audit:{violations:[{}]}}])('rejects malform
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response(data)))
   await expect(api.getAudit('job-1')).rejects.toMatchObject({status:502})
 })
+
+it('shows terminal no-change outcomes without waiting for a PR', () => {
+  render(<RemediationPanel remediation={{status:'no_changes',reason:'no_violations'}} status="completed" />)
+  expect(screen.getByText(/No automatically detectable violations found/)).toBeTruthy()
+  expect(nextDelay({...job,status:'completed',remediation:{status:'no_changes',reason:'no_violations'}})).toBeNull()
+  expect(nextDelay({...job,remediation:{status:'no_changes',reason:'no_candidate_files'}})).toBeNull()
+})

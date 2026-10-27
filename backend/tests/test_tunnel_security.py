@@ -43,7 +43,7 @@ def test_all_service_routes_require_job_authentication(tunnel):
     assert submit(client).status_code == 202
     job = upstream.jobs[0]
     routes = [r for r in app.routes if r.path.startswith('/service/jobs/')]
-    assert {r.path for r in routes} == {'/service/jobs/{job_id}/tree', '/service/jobs/{job_id}/source', '/service/jobs/{job_id}/remediation'}
+    assert {r.path for r in routes} == {'/service/jobs/{job_id}/tree', '/service/jobs/{job_id}/source', '/service/jobs/{job_id}/remediation', '/service/jobs/{job_id}/outcome'}
     for endpoint in ('tree', 'source'):
         path = job['source_service'][f'{endpoint}_path']
         params = {'path': 'src/app.tsx'}

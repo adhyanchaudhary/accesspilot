@@ -31,6 +31,7 @@ const ACTIVE_INTERVAL = 2500
 const REMEDIATION_INTERVAL = 8000
 
 export function nextDelay(job: AuditJob): number | null {
+  if (job.status === 'completed' || job.remediation?.status === 'no_changes') return null
   if (job.remediation?.status === 'failed' || job.remediation?.status === 'completed') return null
   if (statusMeta(job.status).active) return ACTIVE_INTERVAL
   // `submitted` does not mean remediation finished. Keep watching at a slower
