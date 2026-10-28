@@ -97,7 +97,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
                 const finding = job.audit?.violations.find(item => item.id === id)
                 const rule = explainRule(id, finding?.description)
                 return <details key={id}>
-                  <summary>{rule.title}</summary>
+                  <summary><span>{rule.title}</span><ChevronRight size={16} aria-hidden="true" /></summary>
                   <p><strong>Why it matters:</strong> {rule.why}</p>
                   <p><strong>Suggested approach:</strong> {rule.suggestion}</p>
                   <p>Technical rule: <code>{id}</code></p>
