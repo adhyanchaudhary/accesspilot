@@ -8,6 +8,14 @@ import { explainRule } from '../lib/axeRules'
 
 export function ChangesViewer({ job }: { job: AuditJob }) {
   const { expireSession } = useAuth()
+  return <ChangesViewerContent job={job} loadChanges={api.getAuditChanges} expireSession={expireSession} />
+}
+
+export function ChangesViewerContent({ job, loadChanges, expireSession }: {
+  job: AuditJob
+  loadChanges: typeof api.getAuditChanges
+  expireSession: () => void
+}) {
   const [data, setData] = useState<AuditChanges | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState(0)
@@ -22,7 +30,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
     let cancelled = false
     const controller = new AbortController()
     setLoading(true)
-    api.getAuditChanges(job.job_id, controller.signal).then(result => {
+    loadChanges(job.job_id, controller.signal).then(result => {
       if (cancelled) return
       if (result.status === 'completed' && result.commit_sha !== commit) throw new ApiError(409, 'Preview commit does not match this audit.')
       setData(result)
@@ -32,7 +40,7 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
       setError(isApiError(cause) ? cause.message : 'Unable to load the code preview.')
     }).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true; controller.abort() }
-  }, [job.job_id, commit, retry, expireSession])
+  }, [job.job_id, commit, retry, expireSession, loadChanges])
 
   const confirmed = data?.status === 'completed' && data.commit_sha === commit && data.job_id === job.job_id
   const files = confirmed ? data.files : []
