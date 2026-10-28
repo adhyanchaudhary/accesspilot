@@ -39,7 +39,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
   const totalElements = violations.reduce((count, violation) => count + violation.nodes.length, 0)
 
   return (
-    <section className="card overflow-hidden" aria-labelledby="issues-title">
+    <section className="card findings-panel overflow-hidden" aria-labelledby="issues-title">
       <header className="flex flex-col gap-4 border-b border-navy-100 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
@@ -50,7 +50,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
               Detected accessibility issues
             </h2>
             <p className="mt-0.5 text-sm leading-relaxed text-navy-500">
-              Grouped by axe-core rule, with the exact elements that need attention.
+              Understand each issue, then review the proposed code alongside it.
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
             const impact = impactFor(violation.impact)
             const rule = explainRule(violation.id, violation.description)
             return (
-              <details key={`${rule.title}-${index}`} className="group">
+              <details key={`${rule.title}-${index}`} className="group finding-row">
                 <summary className="flex cursor-pointer list-none items-start gap-3 px-5 py-4 transition hover:bg-[#f8fbff] [&::-webkit-details-marker]:hidden">
                   <span
                     className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${impact.dot}`}
@@ -89,7 +89,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
-                      <span className="break-all font-mono text-sm font-bold text-navy-900">
+                      <span className="text-sm font-semibold leading-snug text-navy-900">
                         {rule.title}
                       </span>
                       <span
