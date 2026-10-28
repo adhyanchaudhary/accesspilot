@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, ChevronDown, Code2, ShieldAlert } from 'lucide-react'
+import { explainRule } from '../lib/axeRules'
 import type { Violation } from '../lib/types'
 
 const IMPACTS: Record<string, { label: string; dot: string; badge: string }> = {
@@ -78,8 +79,9 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
         <div className="divide-y divide-navy-100">
           {violations.map((violation, index) => {
             const impact = impactFor(violation.impact)
+            const rule = explainRule(violation.id, violation.description)
             return (
-              <details key={`${violation.id}-${index}`} className="group">
+              <details key={`${rule.title}-${index}`} className="group">
                 <summary className="flex cursor-pointer list-none items-start gap-3 px-5 py-4 transition hover:bg-[#f8fbff] [&::-webkit-details-marker]:hidden">
                   <span
                     className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${impact.dot}`}
@@ -88,7 +90,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className="break-all font-mono text-sm font-bold text-navy-900">
-                        {violation.id}
+                        {rule.title}
                       </span>
                       <span
                         className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${impact.badge}`}
@@ -100,7 +102,7 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
                       </span>
                     </span>
                     <span className="mt-1.5 block text-sm leading-relaxed text-navy-600">
-                      {violation.description}
+                      {rule.why}
                     </span>
                   </span>
                   <span className="hidden shrink-0 items-center rounded-lg bg-navy-50 px-2 py-1 text-[11px] font-semibold text-navy-500 sm:inline-flex">
@@ -113,6 +115,8 @@ export function ViolationList({ violations }: { violations: Violation[] }) {
                 </summary>
 
                 <div className="border-t border-navy-100 bg-[#fbfdff] px-5 pb-5 pt-4">
+                  <p className="mb-3 text-sm text-navy-600"><strong>Suggested approach:</strong> {rule.suggestion}</p>
+                  <p className="mb-3 text-sm text-navy-600">Technical rule: <code>{violation.id}</code> · <span>{violation.description}</span></p>
                   <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-navy-400">
                     Affected elements
                   </p>

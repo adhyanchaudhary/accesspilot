@@ -1,0 +1,62 @@
+{
+  "image-alt": {
+    "title": "An image needs a description",
+    "why": "People using screen readers may miss what the image communicates.",
+    "suggestion": "Add meaningful alternative text, or empty alt text for a purely decorative image."
+  },
+  "button-name": {
+    "title": "A button needs a clear name",
+    "why": "A screen reader may announce only “button” without explaining its action.",
+    "suggestion": "Give the button an accessible name that describes its action."
+  },
+  "link-name": {
+    "title": "A link needs a readable name",
+    "why": "People using screen readers need to know where a link leads.",
+    "suggestion": "Add meaningful link text or an accessible name."
+  },
+  "color-contrast": {
+    "title": "Some text is hard to read",
+    "why": "Similar text and background colors can make reading difficult for people with low vision.",
+    "suggestion": "Increase the contrast between the text and its background."
+  },
+  "label": {
+    "title": "An input needs a label",
+    "why": "People need to know what information to enter in a form.",
+    "suggestion": "Connect a descriptive label to the input; a placeholder alone is not enough."
+  },
+  "html-has-lang": {
+    "title": "The page language is missing",
+    "why": "Screen readers need the page language to pronounce words correctly.",
+    "suggestion": "Set the correct lang attribute on the html element."
+  },
+  "html-lang-valid": {
+    "title": "The page language setting is invalid",
+    "why": "An invalid language code can prevent correct screen reader pronunciation.",
+    "suggestion": "Use a valid language tag that matches the page content."
+  },
+  "document-title": {
+    "title": "The page needs a useful title",
+    "why": "A page title helps people identify browser tabs and navigate with assistive technology.",
+    "suggestion": "Add a descriptive title for this page."
+  },
+  "heading-order": {
+    "title": "Headings skip a level",
+    "why": "A clear heading hierarchy helps readers understand the structure of the page.",
+    "suggestion": "Organize heading levels to reflect the sections and subsections."
+  },
+  "select-name": {
+    "title": "A dropdown needs a label",
+    "why": "Screen reader users need to know what they are choosing.",
+    "suggestion": "Give the select control a connected label or accessible name."
+  },
+  "frame-title": {
+    "title": "Embedded content needs a name",
+    "why": "Screen reader users need to identify what an embedded frame contains.",
+    "suggestion": "Give the iframe a descriptive title."
+  },
+  "aria-hidden-focus": {
+    "title": "A hidden element can still receive keyboard focus",
+    "why": "Keyboard users may reach a control that assistive technology cannot describe.",
+    "suggestion": "Keep interactive controls out of hidden content, or make the relevant content accessible."
+  }
+}

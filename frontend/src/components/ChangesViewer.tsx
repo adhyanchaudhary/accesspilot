@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { api, ApiError, isApiError } from '../lib/api'
 import type { AuditChanges, AuditJob } from '../lib/types'
 import './ChangesViewer.css'
+import { explainRule } from '../lib/axeRules'
 
 export function ChangesViewer({ job }: { job: AuditJob }) {
   const { expireSession } = useAuth()
@@ -90,7 +91,21 @@ export function ChangesViewer({ job }: { job: AuditJob }) {
             {file.status === 'available' && <button type="button" className="changes-copy" onClick={copyPatch} aria-label="Copy visible patch">
               {copyStatus === 'Copied' ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}Copy patch</button>}</div>
           {file.status === 'available' ? <>
-            <div className="changes-issues">Unified diff · 3 lines of context{file.issue_ids.map(id => <span key={id}>{id}</span>)}</div>
+            <div className="proposed-rule-explanations">
+              {file.issue_ids.length > 0 && <p>Proposed fixes · Not yet verified by a new scan</p>}
+              {[...new Set(file.issue_ids)].map(id => {
+                const finding = job.audit?.violations.find(item => item.id === id)
+                const rule = explainRule(id, finding?.description)
+                return <details key={id}>
+                  <summary>{rule.title}</summary>
+                  <p><strong>Why it matters:</strong> {rule.why}</p>
+                  <p><strong>Suggested approach:</strong> {rule.suggestion}</p>
+                  <p>Technical rule: <code>{id}</code></p>
+                  {finding && <p>Original finding: {finding.description}</p>}
+                </details>
+              })}
+            </div>
+            <div className="changes-issues">Unified diff · 3 lines of context</div>
             <div className="diff-scroll" tabIndex={0} role="region" aria-label={`Code diff for ${file.file_path}`}>
               <table className="diff-table"><caption className="sr-only">Original and proposed code. Plus marks additions; minus marks deletions. Old and new line numbers are shown.</caption>
                 <thead className="sr-only"><tr><th>Old line</th><th>New line</th><th>Change</th><th>Source code</th></tr></thead>
