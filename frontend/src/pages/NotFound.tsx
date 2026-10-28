@@ -8,6 +8,7 @@ export function NotFound() {
     <Layout>
       <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6">
         <EmptyState
+          headingLevel={1}
           icon={Compass}
           title="Page not found"
           description="The page you are looking for does not exist or has moved."

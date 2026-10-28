@@ -149,7 +149,7 @@ export function Results() {
 
   if (processing) {
     return (
-      <Layout>
+      <Layout variant="report">
         <AuditLoadingScreen
           job={job}
           websiteUrl={meta?.websiteUrl}
@@ -160,7 +160,7 @@ export function Results() {
   }
 
   return (
-    <Layout>
+    <Layout variant="report">
       <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
         <Link
           to="/dashboard"
@@ -267,10 +267,10 @@ export function Results() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 bg-white/60 px-5 py-4 sm:px-6">
                   <h2 className="flex items-center gap-2 text-sm font-bold text-navy-900">
                     <Activity className="h-4 w-4 text-brand-600" aria-hidden="true" />
-                    Audit lifecycle
+                    Audit progress
                   </h2>
                   <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-navy-400">
-                    Backend-reported status
+                    Scan status
                   </span>
                 </div>
                 <div className="px-5 py-4 sm:px-6">

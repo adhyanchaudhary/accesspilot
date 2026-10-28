@@ -3,10 +3,10 @@ import './Workspace.css'
 import { useAuth } from '../context/AuthContext'
 import { Navbar } from './Navbar'
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ children, variant }: { children: ReactNode; variant?: 'report' }) {
   const { error } = useAuth()
   return (
-    <div className="workspace relative flex min-h-screen flex-col">
+    <div className={`workspace relative flex min-h-screen flex-col${variant === 'report' ? ' workspace-report' : ''}`}>
       <Navbar />
       {error && <p role="alert" className="mx-auto max-w-6xl p-4 text-sm text-red-700">{error}</p>}
       <main className="flex-1">{children}</main>

@@ -58,5 +58,10 @@
     "title": "A hidden element can still receive keyboard focus",
     "why": "Keyboard users may reach a control that assistive technology cannot describe.",
     "suggestion": "Keep interactive controls out of hidden content, or make the relevant content accessible."
+  },
+  "page-has-heading-one": {
+    "title": "The page needs a main heading",
+    "why": "A main heading helps people using screen readers identify the purpose of the page and navigate its content.",
+    "suggestion": "Add a visible, descriptive h1 heading for the page, with section headings below it."
   }
 }

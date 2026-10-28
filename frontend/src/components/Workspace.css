@@ -213,3 +213,17 @@
 }
 
 .audit-submit:hover:not(:disabled) .audit-submit-arrow { transform: translateX(3px); }
+
+/* Report pages prioritize findings and code over landing-page decoration. */
+.workspace.workspace-report { background: #f6f7f9; color: #202936; }
+.workspace-report::before { display: none; }
+.workspace-report .card, .workspace-report .changes-viewer { border: 1px solid #dce0e6; border-radius: 10px; background: #fff; box-shadow: none; }
+.workspace-report .workspace-intro { border: 0; border-bottom: 1px solid #dce0e6; border-radius: 0; background: transparent; box-shadow: none; padding: 8px 0 20px; }
+.workspace-report .workspace-intro::before, .workspace-report .workspace-intro > .bg-grid-fade { display: none; }
+.workspace-report .eyebrow { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: #526071; }
+.workspace-report .changes-heading, .workspace-report .changes-files, .workspace-report .changes-tab { background: #f9fafb; }
+.workspace-report .changes-heading { border-color: #dce0e6; }
+.workspace-report .changes-heading h2 { font-weight: 650; }
+.workspace-report .proposed-rule-explanations { background: #fff; border-bottom: 1px solid #e5e7eb; }
+.workspace-report .proposed-rule-explanations details { border-radius: 6px; border-color: #dce0e6; }
+.workspace-report footer { background: #f6f7f9; backdrop-filter: none; }
