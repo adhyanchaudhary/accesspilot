@@ -18,6 +18,7 @@ export function Landing() {
       <Header />
       {error && <p role="alert" className="mx-auto max-w-6xl px-6 pt-24 text-sm text-red-700">{error}</p>}
       <main id="main">
+        <h1 className="sr-only">AccessPilot</h1>
         <Hero />
         <Features />
         <HowItWorks />

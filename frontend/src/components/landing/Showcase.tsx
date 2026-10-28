@@ -51,7 +51,7 @@ export function Showcase() {
                   <p className="p-3 text-xs text-center">Illustrative interface preview — not audit results</p>
                   <Image
                     src="/assets/audit-report.svg"
-                    alt="Illustrative AccessPilot interface layout; run a scan to view actual findings."
+                    alt="Interface showing report findings summary and accessibility scores."
                     width={720}
                     height={520}
                     unoptimized
@@ -78,7 +78,7 @@ export function Showcase() {
               <h2 id="showcase-title" className={styles.h2}>
                 Every issue explained. Every fix verifiable.
               </h2>
-              <p>
+              <p style={{ color: "#5a7194" }}>
                 No black-box scores or endless spreadsheets. AccessPilot turns accessibility
                 findings into a clear, prioritized plan your whole team can follow.
               </p>
@@ -91,7 +91,7 @@ export function Showcase() {
                     <span className={styles.checkIcon} aria-hidden="true">
                       <CheckIcon />
                     </span>
-                    <span>
+                    <span style={{ color: "#5a7194" }}>
                       <strong>{item.title}</strong> — {item.text}
                     </span>
                   </li>

@@ -60,7 +60,7 @@ export function Header() {
             aria-label={open ? "Close navigation menu" : "Open navigation menu"}
             onClick={() => setOpen((value) => !value)}
           >
-            {open ? <CloseIcon /> : <MenuIcon />}
+            {open ? <CloseIcon aria-hidden="true" /> : <MenuIcon aria-hidden="true" />}
           </button>
         </div>
 
