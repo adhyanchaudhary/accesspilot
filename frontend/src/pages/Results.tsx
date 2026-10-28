@@ -263,20 +263,20 @@ export function Results() {
             </Alert>
           ) : (
             <div className="space-y-4">
-              <div className="card overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 bg-white/60 px-5 py-4 sm:px-6">
+              <details className="card audit-progress-disclosure">
+                <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-5 py-3">
                   <h2 className="flex items-center gap-2 text-sm font-bold text-navy-900">
                     <Activity className="h-4 w-4 text-brand-600" aria-hidden="true" />
                     Audit progress
                   </h2>
                   <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-navy-400">
-                    Scan status
+                    View stages
                   </span>
-                </div>
-                <div className="px-5 py-4 sm:px-6">
+                </summary>
+                <div className="border-t border-slate-100 px-5 py-4">
                   <StatusStepper status={job.status} />
                 </div>
-              </div>
+              </details>
 
 
               {job.status === 'failed' && (
