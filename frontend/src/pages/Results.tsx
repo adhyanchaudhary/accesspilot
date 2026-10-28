@@ -161,7 +161,7 @@ export function Results() {
 
   return (
     <Layout>
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
         <Link
           to="/dashboard"
           className="group inline-flex items-center gap-1.5 text-sm font-semibold text-navy-500 hover:text-brand-700"
@@ -173,7 +173,7 @@ export function Results() {
           Back to dashboard
         </Link>
 
-        <div className="workspace-intro relative mt-6 overflow-hidden rounded-2xl border border-brand-200 p-6 sm:p-8">
+        <div className="workspace-intro relative mt-4 overflow-hidden rounded-2xl border border-brand-200 p-4 sm:p-5">
           <div
             className="pointer-events-none absolute inset-0 bg-grid-fade opacity-70"
             aria-hidden="true"
@@ -234,7 +234,7 @@ export function Results() {
           </div>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-5">
           {notFound ? (
             <EmptyState
               icon={FileSearch}
@@ -262,7 +262,7 @@ export function Results() {
               </button>
             </Alert>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="card overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-navy-100 bg-white/60 px-5 py-4 sm:px-6">
                   <h2 className="flex items-center gap-2 text-sm font-bold text-navy-900">
@@ -273,12 +273,11 @@ export function Results() {
                     Backend-reported status
                   </span>
                 </div>
-                <div className="px-5 py-6 sm:px-6">
+                <div className="px-5 py-4 sm:px-6">
                   <StatusStepper status={job.status} />
                 </div>
               </div>
 
-              <ChangesViewer key={job.job_id} job={job} />
 
               {job.status === 'failed' && (
                 <Alert variant="error" title={describeAuditError(job.error).title}>
@@ -307,14 +306,14 @@ export function Results() {
                 <AuditStatusSummary remediation={job.remediation} status={job.status} />
               </div>
 
-              <div className="grid items-start gap-6 lg:grid-cols-3">
-                <div className="min-w-0 space-y-6 lg:col-span-2">
+              <div className="audit-review-grid">
+                <div className="min-w-0 space-y-4">
                   {job.audit && <ViolationList violations={job.audit.violations} />}
-                </div>
-
-                <aside className="min-w-0">
                   <RemediationPanel remediation={job.remediation} status={job.status} />
-                </aside>
+                </div>
+                <div className="min-w-0 audit-review-code">
+                  <ChangesViewer key={job.job_id} job={job} />
+                </div>
               </div>
             </div>
           )}

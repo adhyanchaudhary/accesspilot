@@ -99,3 +99,33 @@
 .proposed-rule-explanations details { padding: 8px 0; }
 .proposed-rule-explanations summary { cursor: pointer; font-weight: 600; }
 .proposed-rule-explanations p { margin: 6px 0; }
+
+/* Compact review layout: findings left, more room for code on the right. */
+.audit-review-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.audit-review-code .changes-heading { padding: 18px; flex-wrap: wrap; gap: 12px; }
+.audit-review-code .changes-heading h2 { font-size: 20px; }
+.audit-review-code .changes-workbench { grid-template-columns: minmax(0, 1fr); }
+.audit-review-code .changes-files { display: flex; gap: 6px; overflow-x: auto; padding: 10px; border-right: 0; border-bottom: 1px solid #dbe8fa; }
+.audit-review-code .changes-files-label { display: none; }
+.audit-review-code .changes-files button { width: auto; flex: 0 0 auto; max-width: 280px; padding: 9px 12px; }
+.proposed-rule-explanations { padding: 12px; background: #f5f8ff; }
+.proposed-rule-explanations > p { color: #526788; font-size: 11px; margin: 0 0 8px; }
+.proposed-rule-explanations details { padding: 0; margin-top: 6px; border: 1px solid #d7e3f5; border-radius: 10px; background: white; overflow: hidden; }
+.proposed-rule-explanations summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 13px; color: #1d4ed8; list-style: none; }
+.proposed-rule-explanations summary::-webkit-details-marker { display: none; }
+.proposed-rule-explanations summary:hover { background: #eaf1ff; }
+.proposed-rule-explanations summary svg { flex-shrink: 0; transition: transform .15s ease; }
+.proposed-rule-explanations details[open] summary svg { transform: rotate(90deg); }
+.proposed-rule-explanations details[open] summary { background: #eaf1ff; border-bottom: 1px solid #d7e3f5; }
+.proposed-rule-explanations details p { margin: 10px 13px; }
+.changes-copy, .changes-pr { min-height: 36px; }
+.changes-pr { background: #1d4ed8; color: white; border-color: #1d4ed8; box-shadow: 0 3px 8px #1d4ed820; }
+.changes-pr:hover { background: #1e40af; color: white; }
+.changes-viewer button:focus-visible, .changes-viewer a:focus-visible, .proposed-rule-explanations summary:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (min-width: 1024px) {
+  .audit-review-grid { grid-template-columns: minmax(300px, .85fr) minmax(0, 1.65fr); }
+  .audit-review-code { position: sticky; top: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .proposed-rule-explanations summary svg { transition: none; }
+}
