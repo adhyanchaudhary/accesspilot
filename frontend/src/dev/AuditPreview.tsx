@@ -39,7 +39,7 @@ export default function AuditPreview() {
   }
   return <div className="workspace workspace-report min-h-screen">
     <main className="mx-auto max-w-[1600px] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
+      <header className="workspace-intro flex flex-wrap items-center justify-between gap-4">
         <div><h1 className="text-2xl font-semibold">Audit results · UI preview</h1>
           <p className="mt-2 text-sm text-slate-600">Sample data only. No scan, login, API request, or real pull request.</p></div>
         <label className="flex items-center gap-3 text-sm font-medium">Preview state
