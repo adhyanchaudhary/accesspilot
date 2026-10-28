@@ -94,3 +94,8 @@
 .changes-pr { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; border: 1px solid #cfe0fb; border-radius: 8px; background: #e9f1ff; color: #1d4ed8; padding: 8px 12px; font-size: 12px; font-weight: 600; }
 .changes-pr:hover { background: #dbe9ff; color: #123b82; }
 @media(max-width: 760px) { .changes-actions { justify-content: flex-start; } }
+
+.proposed-rule-explanations { padding: 12px 16px; font-size: 13px; line-height: 1.6; }
+.proposed-rule-explanations details { padding: 8px 0; }
+.proposed-rule-explanations summary { cursor: pointer; font-weight: 600; }
+.proposed-rule-explanations p { margin: 6px 0; }
